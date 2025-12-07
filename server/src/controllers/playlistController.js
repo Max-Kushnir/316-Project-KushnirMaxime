@@ -1,7 +1,7 @@
-const playlistModel = require('../models/playlistModel');
-const playlistSongModel = require('../models/playlistSongModel');
-const playlistListenerModel = require('../models/playlistListenerModel');
-const songModel = require('../models/songModel');
+const playlistService = require('../services/playlistService');
+const playlistSongService = require('../services/playlistSongService');
+const playlistListenerService = require('../services/playlistListenerService');
+const songService = require('../services/songService');
 const { AppError } = require('../middleware/errorHandler');
 const { sendSuccess, sendError } = require('../utils/responseHelper');
 const { v4: uuidv4 } = require('uuid');
@@ -23,7 +23,7 @@ const getAllPlaylists = async (req, res, next) => {
 
     const userId = req.user ? req.user.id : null;
 
-    const playlists = await playlistModel.findAll(
+    const playlists = await playlistService.findAll(
       filters,
       sortBy || 'created_at',
       sortOrder?.toUpperCase() || 'DESC',
@@ -44,7 +44,7 @@ const getPlaylist = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const playlist = await playlistModel.findById(parseInt(id));
+    const playlist = await playlistService.findById(parseInt(id));
     if (!playlist) {
       throw new AppError('Playlist not found', 404);
     }
@@ -66,16 +66,16 @@ const createPlaylist = async (req, res, next) => {
 
     // If no name provided, generate "Untitled N" name
     if (!name || name.trim() === '') {
-      name = await playlistModel.getNextUntitledName(ownerId);
+      name = await playlistService.getNextUntitledName(ownerId);
     } else {
       // Check uniqueness for this user
-      const existing = await playlistModel.findByOwnerAndName(ownerId, name);
+      const existing = await playlistService.findByOwnerAndName(ownerId, name);
       if (existing) {
         throw new AppError('You already have a playlist with this name', 409);
       }
     }
 
-    const playlist = await playlistModel.create(name, ownerId);
+    const playlist = await playlistService.create(name, ownerId);
 
     sendSuccess(res, 201, { playlist }, 'Playlist created successfully');
   } catch (error) {
@@ -93,7 +93,7 @@ const updatePlaylist = async (req, res, next) => {
     const { name } = req.body;
 
     // Check if playlist exists
-    const existingPlaylist = await playlistModel.findById(parseInt(id));
+    const existingPlaylist = await playlistService.findById(parseInt(id));
     if (!existingPlaylist) {
       throw new AppError('Playlist not found', 404);
     }
@@ -105,13 +105,13 @@ const updatePlaylist = async (req, res, next) => {
 
     // Check uniqueness for this user (if name is changing)
     if (name !== existingPlaylist.name) {
-      const duplicate = await playlistModel.findByOwnerAndName(req.user.id, name);
+      const duplicate = await playlistService.findByOwnerAndName(req.user.id, name);
       if (duplicate && duplicate.id !== parseInt(id)) {
         throw new AppError('You already have a playlist with this name', 409);
       }
     }
 
-    const playlist = await playlistModel.update(parseInt(id), name);
+    const playlist = await playlistService.update(parseInt(id), name);
 
     sendSuccess(res, 200, { playlist }, 'Playlist updated successfully');
   } catch (error) {
@@ -128,7 +128,7 @@ const deletePlaylist = async (req, res, next) => {
     const { id } = req.params;
 
     // Check if playlist exists
-    const existingPlaylist = await playlistModel.findById(parseInt(id));
+    const existingPlaylist = await playlistService.findById(parseInt(id));
     if (!existingPlaylist) {
       throw new AppError('Playlist not found', 404);
     }
@@ -138,7 +138,7 @@ const deletePlaylist = async (req, res, next) => {
       throw new AppError('You do not have permission to delete this playlist', 403);
     }
 
-    await playlistModel.deleteById(parseInt(id));
+    await playlistService.deleteById(parseInt(id));
 
     sendSuccess(res, 200, null, 'Playlist deleted successfully');
   } catch (error) {
@@ -156,32 +156,32 @@ const copyPlaylist = async (req, res, next) => {
     const ownerId = req.user.id;
 
     // Get original playlist with songs
-    const originalPlaylist = await playlistModel.findById(parseInt(id));
+    const originalPlaylist = await playlistService.findById(parseInt(id));
     if (!originalPlaylist) {
       throw new AppError('Playlist not found', 404);
     }
 
     // Generate unique name for the copy
     let copyName = `${originalPlaylist.name} - Copy`;
-    let existing = await playlistModel.findByOwnerAndName(ownerId, copyName);
+    let existing = await playlistService.findByOwnerAndName(ownerId, copyName);
     let counter = 1;
 
     while (existing) {
       copyName = `${originalPlaylist.name} - Copy ${counter}`;
-      existing = await playlistModel.findByOwnerAndName(ownerId, copyName);
+      existing = await playlistService.findByOwnerAndName(ownerId, copyName);
       counter++;
     }
 
     // Create new playlist
-    const newPlaylist = await playlistModel.create(copyName, ownerId);
+    const newPlaylist = await playlistService.create(copyName, ownerId);
 
     // Copy all songs
     for (const song of originalPlaylist.songs) {
-      await playlistSongModel.addSong(newPlaylist.id, song.id);
+      await playlistSongService.addSong(newPlaylist.id, song.id);
     }
 
     // Fetch complete playlist with songs
-    const playlist = await playlistModel.findById(newPlaylist.id);
+    const playlist = await playlistService.findById(newPlaylist.id);
 
     sendSuccess(res, 201, { playlist }, 'Playlist copied successfully');
   } catch (error) {
@@ -198,7 +198,7 @@ const recordListener = async (req, res, next) => {
     const { id } = req.params;
 
     // Check if playlist exists
-    const playlist = await playlistModel.findById(parseInt(id));
+    const playlist = await playlistService.findById(parseInt(id));
     if (!playlist) {
       throw new AppError('Playlist not found', 404);
     }
@@ -212,7 +212,7 @@ const recordListener = async (req, res, next) => {
       listenerIdentifier = req.body.sessionId || `guest_${uuidv4()}`;
     }
 
-    const isNewListener = await playlistListenerModel.recordListener(
+    const isNewListener = await playlistListenerService.recordListener(
       parseInt(id),
       listenerIdentifier
     );
@@ -242,7 +242,7 @@ const addSongToPlaylist = async (req, res, next) => {
     }
 
     // Check if playlist exists
-    const playlist = await playlistModel.findById(parseInt(id));
+    const playlist = await playlistService.findById(parseInt(id));
     if (!playlist) {
       throw new AppError('Playlist not found', 404);
     }
@@ -253,13 +253,13 @@ const addSongToPlaylist = async (req, res, next) => {
     }
 
     // Check if song exists
-    const song = await songModel.findById(parseInt(songId));
+    const song = await songService.findById(parseInt(songId));
     if (!song) {
       throw new AppError('Song not found', 404);
     }
 
     // Check if song already in playlist
-    const alreadyExists = await playlistSongModel.songExistsInPlaylist(
+    const alreadyExists = await playlistSongService.songExistsInPlaylist(
       parseInt(id),
       parseInt(songId)
     );
@@ -267,10 +267,10 @@ const addSongToPlaylist = async (req, res, next) => {
       throw new AppError('Song already in playlist', 409);
     }
 
-    await playlistSongModel.addSong(parseInt(id), parseInt(songId));
+    await playlistSongService.addSong(parseInt(id), parseInt(songId));
 
     // Return updated playlist
-    const updatedPlaylist = await playlistModel.findById(parseInt(id));
+    const updatedPlaylist = await playlistService.findById(parseInt(id));
 
     sendSuccess(res, 201, { playlist: updatedPlaylist }, 'Song added to playlist');
   } catch (error) {
@@ -287,7 +287,7 @@ const removeSongFromPlaylist = async (req, res, next) => {
     const { playlistId, songId } = req.params;
 
     // Check if playlist exists
-    const playlist = await playlistModel.findById(parseInt(playlistId));
+    const playlist = await playlistService.findById(parseInt(playlistId));
     if (!playlist) {
       throw new AppError('Playlist not found', 404);
     }
@@ -297,7 +297,7 @@ const removeSongFromPlaylist = async (req, res, next) => {
       throw new AppError('You do not have permission to modify this playlist', 403);
     }
 
-    const removed = await playlistSongModel.removeSong(
+    const removed = await playlistSongService.removeSong(
       parseInt(playlistId),
       parseInt(songId)
     );
@@ -307,7 +307,7 @@ const removeSongFromPlaylist = async (req, res, next) => {
     }
 
     // Return updated playlist
-    const updatedPlaylist = await playlistModel.findById(parseInt(playlistId));
+    const updatedPlaylist = await playlistService.findById(parseInt(playlistId));
 
     sendSuccess(res, 200, { playlist: updatedPlaylist }, 'Song removed from playlist');
   } catch (error) {
@@ -329,7 +329,7 @@ const reorderSongs = async (req, res, next) => {
     }
 
     // Check if playlist exists
-    const playlist = await playlistModel.findById(parseInt(id));
+    const playlist = await playlistService.findById(parseInt(id));
     if (!playlist) {
       throw new AppError('Playlist not found', 404);
     }
@@ -340,7 +340,7 @@ const reorderSongs = async (req, res, next) => {
     }
 
     // Verify all songs exist in playlist
-    const currentSongs = await playlistSongModel.findByPlaylistId(parseInt(id));
+    const currentSongs = await playlistSongService.findByPlaylistId(parseInt(id));
     const currentSongIds = currentSongs.map(s => s.id);
 
     if (songIds.length !== currentSongIds.length) {
@@ -353,10 +353,10 @@ const reorderSongs = async (req, res, next) => {
       }
     }
 
-    await playlistSongModel.reorderSongs(parseInt(id), songIds);
+    await playlistSongService.reorderSongs(parseInt(id), songIds);
 
     // Return updated playlist
-    const updatedPlaylist = await playlistModel.findById(parseInt(id));
+    const updatedPlaylist = await playlistService.findById(parseInt(id));
 
     sendSuccess(res, 200, { playlist: updatedPlaylist }, 'Songs reordered successfully');
   } catch (error) {

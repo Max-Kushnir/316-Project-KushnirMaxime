@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const userModel = require('../models/userModel');
+const userService = require('../services/userService');
 const { AppError } = require('../middleware/errorHandler');
 const { sendSuccess, sendError } = require('../utils/responseHelper');
 
@@ -16,7 +16,7 @@ const getProfile = async (req, res, next) => {
     }
 
     // Find user by ID
-    const user = await userModel.findById(userId);
+    const user = await userService.findById(userId);
 
     if (!user) {
       throw new AppError('User not found', 404);
@@ -88,7 +88,7 @@ const updateProfile = async (req, res, next) => {
     }
 
     // Update user
-    const updatedUser = await userModel.update(userId, updates);
+    const updatedUser = await userService.update(userId, updates);
 
     if (!updatedUser) {
       throw new AppError('Failed to update user profile', 500);

@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const userModel = require('../models/userModel');
+const userService = require('../services/userService');
 const { AppError } = require('../middleware/errorHandler');
 const { sendSuccess, sendError } = require('../utils/responseHelper');
 
@@ -13,7 +13,7 @@ const register = async (req, res, next) => {
     const { email, username, password, avatar_image } = req.body;
 
     // Check if email already exists
-    const existingUser = await userModel.findByEmail(email);
+    const existingUser = await userService.findByEmail(email);
     if (existingUser) {
       throw new AppError('Email already in use', 409);
     }
@@ -23,7 +23,7 @@ const register = async (req, res, next) => {
     const passwordHash = await bcrypt.hash(password, salt);
 
     // Create user
-    const user = await userModel.create(email, username, passwordHash, avatar_image);
+    const user = await userService.create(email, username, passwordHash, avatar_image);
 
     sendSuccess(res, 201, { user }, 'Account created successfully');
   } catch (error) {
@@ -40,7 +40,7 @@ const login = async (req, res, next) => {
     const { email, password } = req.body;
 
     // Find user by email
-    const user = await userModel.findByEmail(email);
+    const user = await userService.findByEmail(email);
     if (!user) {
       throw new AppError('Invalid email or password', 401);
     }

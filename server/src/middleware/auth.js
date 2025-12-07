@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { AppError } = require('./errorHandler');
-const userModel = require('../models/userModel');
+const userService = require('../services/userService');
 
 /**
  * Middleware to authenticate JWT token
@@ -19,7 +19,7 @@ const authenticateToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Fetch user from database
-    const user = await userModel.findById(decoded.userId);
+    const user = await userService.findById(decoded.userId);
 
     if (!user) {
       throw new AppError('User not found', 401);
@@ -63,7 +63,7 @@ const optionalAuth = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Fetch user from database
-    const user = await userModel.findById(decoded.userId);
+    const user = await userService.findById(decoded.userId);
 
     if (user) {
       req.user = {
