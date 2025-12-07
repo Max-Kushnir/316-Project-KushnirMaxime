@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { errorHandler } = require('./middleware/errorHandler');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -18,6 +19,9 @@ app.get('/', (req, res) => {
     message: 'Playlister API'
   });
 });
+
+// API Routes
+app.use('/api/auth', authRoutes);
 
 // Error handler middleware (must be last)
 app.use(errorHandler);
