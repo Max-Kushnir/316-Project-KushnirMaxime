@@ -107,7 +107,18 @@ const reorderSongs = async (playlistId, songIds) => {
   try {
     await client.query('BEGIN');
 
-    // Update position for each song
+    // First, set all positions to negative values to avoid unique constraint conflicts
+    // Use negative index to ensure uniqueness during transition
+    for (let i = 0; i < songIds.length; i++) {
+      await client.query(
+        `UPDATE playlist_songs
+         SET position = $1
+         WHERE playlist_id = $2 AND song_id = $3`,
+        [-1 - i, playlistId, songIds[i]]
+      );
+    }
+
+    // Then update to final positions
     for (let i = 0; i < songIds.length; i++) {
       await client.query(
         `UPDATE playlist_songs

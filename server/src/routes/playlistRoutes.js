@@ -42,29 +42,6 @@ router.post(
 );
 
 /**
- * PUT /api/playlists/:id
- * Update playlist name (requires authentication and ownership)
- * Body: { name }
- */
-router.put(
-  '/:id',
-  authenticateToken,
-  playlistUpdateValidation,
-  validateRequest,
-  playlistController.updatePlaylist
-);
-
-/**
- * DELETE /api/playlists/:id
- * Delete playlist (requires authentication and ownership)
- */
-router.delete(
-  '/:id',
-  authenticateToken,
-  playlistController.deletePlaylist
-);
-
-/**
  * POST /api/playlists/:id/copy
  * Copy playlist (deep copy with all songs)
  * Requires authentication
@@ -99,6 +76,17 @@ router.post(
 );
 
 /**
+ * PUT /api/playlists/:id/songs/reorder
+ * Reorder songs in playlist (requires authentication and ownership)
+ * Body: { songIds: [] }
+ */
+router.put(
+  '/:id/songs/reorder',
+  authenticateToken,
+  playlistController.reorderSongs
+);
+
+/**
  * DELETE /api/playlists/:playlistId/songs/:songId
  * Remove song from playlist (requires authentication and ownership)
  */
@@ -109,14 +97,26 @@ router.delete(
 );
 
 /**
- * PUT /api/playlists/:id/songs/reorder
- * Reorder songs in playlist (requires authentication and ownership)
- * Body: { songIds: [] }
+ * PUT /api/playlists/:id
+ * Update playlist name (requires authentication and ownership)
+ * Body: { name }
  */
 router.put(
-  '/:id/songs/reorder',
+  '/:id',
   authenticateToken,
-  playlistController.reorderSongs
+  playlistUpdateValidation,
+  validateRequest,
+  playlistController.updatePlaylist
+);
+
+/**
+ * DELETE /api/playlists/:id
+ * Delete playlist (requires authentication and ownership)
+ */
+router.delete(
+  '/:id',
+  authenticateToken,
+  playlistController.deletePlaylist
 );
 
 module.exports = router;
