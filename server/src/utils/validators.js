@@ -51,9 +51,18 @@ const songValidation = [
 ];
 
 /**
- * Validation schema for playlist creation/update
+ * Validation schema for playlist creation (name is optional)
  */
-const playlistValidation = [
+const playlistCreateValidation = [
+  body('name')
+    .optional()
+    .trim()
+];
+
+/**
+ * Validation schema for playlist update (name is required)
+ */
+const playlistUpdateValidation = [
   body('name')
     .notEmpty()
     .withMessage('Playlist name is required')
@@ -64,5 +73,6 @@ module.exports = {
   registerValidation,
   loginValidation,
   songValidation,
-  playlistValidation
+  playlistCreateValidation,
+  playlistUpdateValidation
 };
