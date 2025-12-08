@@ -123,6 +123,12 @@ const api = {
       credentials: "include",
     }).then((res) => res.json()),
 
+  copySong: (id) =>
+    fetch(`${API_BASE_URL}/songs/${id}/copy`, {
+      method: "POST",
+      credentials: "include",
+    }).then((res) => res.json()),
+
   // Users
   getUserProfile: (id) => fetch(`${API_BASE_URL}/users/${id}`, { credentials: "include" }).then((res) => res.json()),
 

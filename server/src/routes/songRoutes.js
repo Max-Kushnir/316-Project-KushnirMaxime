@@ -58,4 +58,14 @@ router.delete(
   songController.deleteSong
 );
 
+/**
+ * POST /api/songs/:id/copy
+ * Copy song (requires authentication)
+ */
+router.post(
+  '/:id/copy',
+  authenticateToken,
+  songController.copySong
+);
+
 module.exports = router;

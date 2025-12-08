@@ -5,7 +5,6 @@ import { useLocation } from "react-router-dom"
 import { FaSearch } from "react-icons/fa"
 import { useAuth } from "../context/AuthContext"
 import api from "../services/api"
-import CreatePlaylistModal from "../components/modals/CreatePlaylistModal"
 import EditPlaylistModal from "../components/modals/EditPlaylistModal"
 import PlayPlaylistModal from "../components/modals/PlayPlaylistModal"
 import DeletePlaylistModal from "../components/modals/DeletePlaylistModal"
@@ -18,12 +17,19 @@ const Playlists = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
-  // Search filters - 5 separate fields
+  // Search filters - 5 separate fields (input state)
   const [playlistNameFilter, setPlaylistNameFilter] = useState("")
   const [userNameFilter, setUserNameFilter] = useState("")
   const [songTitleFilter, setSongTitleFilter] = useState("")
   const [songArtistFilter, setSongArtistFilter] = useState("")
   const [songYearFilter, setSongYearFilter] = useState("")
+
+  // Applied filters - only update on search button/Enter (per UC 2.12)
+  const [appliedPlaylistNameFilter, setAppliedPlaylistNameFilter] = useState("")
+  const [appliedUserNameFilter, setAppliedUserNameFilter] = useState("")
+  const [appliedSongTitleFilter, setAppliedSongTitleFilter] = useState("")
+  const [appliedSongArtistFilter, setAppliedSongArtistFilter] = useState("")
+  const [appliedSongYearFilter, setAppliedSongYearFilter] = useState("")
 
   // Sort
   const [sortBy, setSortBy] = useState("name-asc")
@@ -32,7 +38,6 @@ const Playlists = () => {
   const [expandedPlaylistIds, setExpandedPlaylistIds] = useState(new Set())
 
   // Modals state
-  const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showPlayModal, setShowPlayModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -44,7 +49,7 @@ const Playlists = () => {
 
   useEffect(() => {
     filterAndSortPlaylists()
-  }, [playlists, playlistNameFilter, userNameFilter, songTitleFilter, songArtistFilter, songYearFilter, sortBy])
+  }, [playlists, appliedPlaylistNameFilter, appliedUserNameFilter, appliedSongTitleFilter, appliedSongArtistFilter, appliedSongYearFilter, sortBy])
 
   const fetchPlaylists = async () => {
     try {
@@ -66,32 +71,32 @@ const Playlists = () => {
   const filterAndSortPlaylists = () => {
     let filtered = [...playlists]
 
-    // Apply all filters (AND logic)
-    if (playlistNameFilter.trim()) {
-      filtered = filtered.filter((p) => p.name.toLowerCase().includes(playlistNameFilter.toLowerCase()))
+    // Apply all filters (AND logic) - using applied filters per UC 2.12
+    if (appliedPlaylistNameFilter.trim()) {
+      filtered = filtered.filter((p) => p.name.toLowerCase().includes(appliedPlaylistNameFilter.toLowerCase()))
     }
 
-    if (userNameFilter.trim()) {
+    if (appliedUserNameFilter.trim()) {
       filtered = filtered.filter((p) =>
-        p.owner?.username?.toLowerCase().includes(userNameFilter.toLowerCase())
+        p.owner?.username?.toLowerCase().includes(appliedUserNameFilter.toLowerCase())
       )
     }
 
-    if (songTitleFilter.trim()) {
+    if (appliedSongTitleFilter.trim()) {
       filtered = filtered.filter((p) =>
-        p.playlist_songs?.some((ps) => ps.song?.title?.toLowerCase().includes(songTitleFilter.toLowerCase()))
+        p.playlist_songs?.some((ps) => ps.song?.title?.toLowerCase().includes(appliedSongTitleFilter.toLowerCase()))
       )
     }
 
-    if (songArtistFilter.trim()) {
+    if (appliedSongArtistFilter.trim()) {
       filtered = filtered.filter((p) =>
-        p.playlist_songs?.some((ps) => ps.song?.artist?.toLowerCase().includes(songArtistFilter.toLowerCase()))
+        p.playlist_songs?.some((ps) => ps.song?.artist?.toLowerCase().includes(appliedSongArtistFilter.toLowerCase()))
       )
     }
 
-    if (songYearFilter.trim()) {
+    if (appliedSongYearFilter.trim()) {
       filtered = filtered.filter((p) =>
-        p.playlist_songs?.some((ps) => ps.song?.year?.toString().includes(songYearFilter.trim()))
+        p.playlist_songs?.some((ps) => ps.song?.year?.toString().includes(appliedSongYearFilter.trim()))
       )
     }
 
@@ -119,16 +124,26 @@ const Playlists = () => {
   }
 
   const handleSearch = () => {
-    // Trigger filtering (already happens via useEffect)
-    filterAndSortPlaylists()
+    // Copy input values to applied values (per UC 2.12 - search on button/Enter only)
+    setAppliedPlaylistNameFilter(playlistNameFilter)
+    setAppliedUserNameFilter(userNameFilter)
+    setAppliedSongTitleFilter(songTitleFilter)
+    setAppliedSongArtistFilter(songArtistFilter)
+    setAppliedSongYearFilter(songYearFilter)
   }
 
   const handleClear = () => {
+    // Clear both input and applied filters
     setPlaylistNameFilter("")
     setUserNameFilter("")
     setSongTitleFilter("")
     setSongArtistFilter("")
     setSongYearFilter("")
+    setAppliedPlaylistNameFilter("")
+    setAppliedUserNameFilter("")
+    setAppliedSongTitleFilter("")
+    setAppliedSongArtistFilter("")
+    setAppliedSongYearFilter("")
   }
 
   const togglePlaylistExpanded = (playlistId) => {
@@ -141,12 +156,14 @@ const Playlists = () => {
     setExpandedPlaylistIds(newExpanded)
   }
 
-  const handleCreatePlaylist = async (name) => {
+  const handleCreatePlaylist = async () => {
     try {
-      const result = await api.createPlaylist(name)
+      const result = await api.createPlaylist()
       if (result.success) {
-        setPlaylists([...playlists, result.data.playlist])
-        setShowCreateModal(false)
+        const newPlaylist = result.data.playlist
+        setPlaylists([...playlists, newPlaylist])
+        setSelectedPlaylist(newPlaylist)
+        setShowEditModal(true)
       } else {
         setError(result.message || "Failed to create playlist")
       }
@@ -155,18 +172,19 @@ const Playlists = () => {
     }
   }
 
-  const handleEditPlaylist = async (id, name) => {
+  const handleEditPlaylist = async (playlistId) => {
+    // EditPlaylistModal already handles all API calls, just refresh the playlist data
     try {
-      const result = await api.updatePlaylist(id, name)
+      const result = await api.getPlaylist(playlistId)
       if (result.success) {
-        setPlaylists(playlists.map((p) => (p.id === id ? result.data.playlist : p)))
-        setShowEditModal(false)
-        setSelectedPlaylist(null)
-      } else {
-        setError(result.message || "Failed to update playlist")
+        setPlaylists(playlists.map((p) => (p.id === playlistId ? result.data.playlist : p)))
       }
+      setShowEditModal(false)
+      setSelectedPlaylist(null)
     } catch (err) {
-      setError("Error updating playlist")
+      setError("Error refreshing playlist")
+      setShowEditModal(false)
+      setSelectedPlaylist(null)
     }
   }
 
@@ -640,7 +658,7 @@ const Playlists = () => {
                 {filteredPlaylists.length} {filteredPlaylists.length === 1 ? "Playlist" : "Playlists"}
               </span>
               {user && (
-                <button onClick={() => setShowCreateModal(true)} style={newPlaylistButtonStyle}>
+                <button onClick={handleCreatePlaylist} style={newPlaylistButtonStyle}>
                   New Playlist
                 </button>
               )}
@@ -742,9 +760,6 @@ const Playlists = () => {
       </div>
 
       {/* Modals */}
-      {showCreateModal && (
-        <CreatePlaylistModal onClose={() => setShowCreateModal(false)} onCreate={handleCreatePlaylist} />
-      )}
       {showEditModal && selectedPlaylist && (
         <EditPlaylistModal
           playlist={selectedPlaylist}

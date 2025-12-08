@@ -160,10 +160,41 @@ const deleteById = async (id) => {
   return deleted > 0;
 };
 
+/**
+ * Copy a song with a new owner
+ * @param {Number} songId - ID of the song to copy
+ * @param {Number} newOwnerId - User ID of the new owner
+ * @returns {Object} Created song copy
+ */
+const copy = async (songId, newOwnerId) => {
+  const original = await findById(songId);
+  if (!original) {
+    throw new Error('Song not found');
+  }
+
+  let baseTitle = original.title;
+  let attempt = 0;
+
+  while (true) {
+    try {
+      const titleToTry = attempt === 0 ? baseTitle : `${baseTitle} (Copy${attempt > 1 ? ' ' + attempt : ''})`;
+      return await create(titleToTry, original.artist, original.year, original.youtube_id, newOwnerId);
+    } catch (error) {
+      if ((error.message && error.message.includes('unique')) || error.statusCode === 409) {
+        attempt++;
+        if (attempt > 10) throw new Error('Could not create unique copy');
+      } else {
+        throw error;
+      }
+    }
+  }
+};
+
 module.exports = {
   findAll,
   findById,
   create,
   update,
-  deleteById
+  deleteById,
+  copy
 };

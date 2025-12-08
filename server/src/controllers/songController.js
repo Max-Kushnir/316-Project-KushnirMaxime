@@ -124,10 +124,33 @@ const deleteSong = async (req, res, next) => {
   }
 };
 
+/**
+ * Copy song
+ * POST /api/songs/:id/copy
+ */
+const copySong = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const newOwnerId = req.user.id;
+
+    const originalSong = await songService.findById(parseInt(id));
+    if (!originalSong) {
+      throw new AppError('Song not found', 404);
+    }
+
+    const newSong = await songService.copy(parseInt(id), newOwnerId);
+
+    sendSuccess(res, 201, { song: newSong }, 'Song copied successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllSongs,
   getSong,
   createSong,
   updateSong,
-  deleteSong
+  deleteSong,
+  copySong
 };
