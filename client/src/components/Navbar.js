@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
 
-const Navbar = () => {
+const Navbar = ({ hideNavButtons = false }) => {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [showMenu, setShowMenu] = useState(false)
@@ -22,9 +22,7 @@ const Navbar = () => {
     alignItems: "center",
     justifyContent: "space-between",
     padding: "0 20px",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-    position: "sticky",
-    top: 0,
+    borderBottom: "1px solid black",
     zIndex: 500,
   }
 
@@ -139,22 +137,26 @@ const Navbar = () => {
         >
           🏠
         </button>
-        <button
-          onClick={() => navigate("/playlists")}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-          style={navButtonStyle}
-        >
-          Playlists
-        </button>
-        <button
-          onClick={() => navigate("/songs")}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-          style={navButtonStyle}
-        >
-          Song Catalog
-        </button>
+        {!hideNavButtons && (
+          <>
+            <button
+              onClick={() => navigate("/playlists")}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+              style={navButtonStyle}
+            >
+              Playlists
+            </button>
+            <button
+              onClick={() => navigate("/songs")}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+              style={navButtonStyle}
+            >
+              Song Catalog
+            </button>
+          </>
+        )}
       </div>
 
       {user && <div style={centerTitleStyle}>The Playlister</div>}

@@ -112,20 +112,19 @@ const Account = () => {
 
   const containerStyle = {
     display: "flex",
-    justifyContent: "center",
+    flexDirection: "column",
     alignItems: "center",
-    minHeight: "calc(100vh - 50px)",
-    backgroundColor: "#FFE4F3",
+    justifyContent: "center",
+    height: "100%",
+    textAlign: "center",
     padding: "20px",
+    boxSizing: "border-box",
   }
 
   const formContainerStyle = {
-    backgroundColor: "#FFFDE7",
-    padding: "40px",
-    borderRadius: "8px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
     maxWidth: "400px",
     width: "100%",
+    textAlign: "left",
   }
 
   const titleStyle = {
