@@ -1,12 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "../context/AuthContext"
 import api from "../services/api"
 import CreateSongModal from "../components/modals/CreateSongModal"
 import EditSongModal from "../components/modals/EditSongModal"
 import DeleteSongModal from "../components/modals/DeleteSongModal"
-import AddToPlaylistModal from "../components/modals/AddToPlaylistModal"
 
 const Songs = () => {
   const { user } = useAuth()
@@ -14,18 +13,28 @@ const Songs = () => {
   const [filteredSongs, setFilteredSongs] = useState([])
   const [playlists, setPlaylists] = useState([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchType, setSearchType] = useState("title")
+
+  // Search filters - 3 separate fields
+  const [searchTitle, setSearchTitle] = useState("")
+  const [searchArtist, setSearchArtist] = useState("")
+  const [searchYear, setSearchYear] = useState("")
+
   const [sortBy, setSortBy] = useState("title-asc")
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+
+  // YouTube preview and menu state
+  const [selectedSongForPreview, setSelectedSongForPreview] = useState(null)
+  const [menuOpen, setMenuOpen] = useState(null) // ID of song with open menu
+  const [submenuOpen, setSubmenuOpen] = useState(false)
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false)
-  const [selectedSong, setSelectedSong] = useState(null)
+  const [selectedSong, setSelectedSong] = useState(null) // For modals
+
+  const menuRef = useRef(null)
 
   useEffect(() => {
     fetchSongs()
@@ -34,7 +43,19 @@ const Songs = () => {
 
   useEffect(() => {
     filterAndSortSongs()
-  }, [songs, searchQuery, searchType, sortBy])
+  }, [songs, searchTitle, searchArtist, searchYear, sortBy])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(null)
+        setSubmenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   const fetchSongs = async () => {
     try {
@@ -42,7 +63,9 @@ const Songs = () => {
       setError("")
       const result = await api.getSongs()
       if (result.success) {
-        setSongs(result.data)
+        // Handle both {data: [...]} and {data: {songs: [...]}} response formats
+        const songsData = Array.isArray(result.data) ? result.data : (result.data?.songs || [])
+        setSongs(songsData)
       } else {
         setError("Failed to load songs")
       }
@@ -57,7 +80,9 @@ const Songs = () => {
     try {
       const result = await api.getPlaylists()
       if (result.success) {
-        setPlaylists(result.data.filter((p) => p.owner_id === user.id))
+        // Handle both {data: [...]} and {data: {playlists: [...]}} response formats
+        const playlistsData = Array.isArray(result.data) ? result.data : (result.data?.playlists || [])
+        setPlaylists(playlistsData.filter((p) => p.owner_id === user.id))
       }
     } catch (err) {
       console.error("Error fetching playlists:", err)
@@ -65,23 +90,23 @@ const Songs = () => {
   }
 
   const filterAndSortSongs = () => {
+    if (!Array.isArray(songs)) {
+      setFilteredSongs([])
+      return
+    }
     let filtered = [...songs]
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      filtered = filtered.filter((song) => {
-        const query = searchQuery.toLowerCase()
-        switch (searchType) {
-          case "title":
-            return song.title.toLowerCase().includes(query)
-          case "artist":
-            return song.artist.toLowerCase().includes(query)
-          case "year":
-            return song.year.toString().includes(query)
-          default:
-            return true
-        }
-      })
+    // Apply all filters (AND logic)
+    if (searchTitle.trim()) {
+      filtered = filtered.filter((song) => song.title.toLowerCase().includes(searchTitle.toLowerCase()))
+    }
+
+    if (searchArtist.trim()) {
+      filtered = filtered.filter((song) => song.artist.toLowerCase().includes(searchArtist.toLowerCase()))
+    }
+
+    if (searchYear.trim()) {
+      filtered = filtered.filter((song) => song.year.toString().includes(searchYear.trim()))
     }
 
     // Sort
@@ -115,6 +140,16 @@ const Songs = () => {
     })
 
     setFilteredSongs(filtered)
+  }
+
+  const handleSearch = () => {
+    filterAndSortSongs()
+  }
+
+  const handleClear = () => {
+    setSearchTitle("")
+    setSearchArtist("")
+    setSearchYear("")
   }
 
   const handleCreateSong = async (title, artist, year, youtubeId) => {
@@ -167,12 +202,12 @@ const Songs = () => {
     }
   }
 
-  const handleAddToPlaylist = async (playlistId) => {
+  const handleAddToPlaylist = async (playlistId, songId) => {
     try {
-      const result = await api.addSongToPlaylist(playlistId, selectedSong.id)
+      const result = await api.addSongToPlaylist(playlistId, songId)
       if (result.success) {
-        setShowAddToPlaylistModal(false)
-        setSelectedSong(null)
+        setMenuOpen(null)
+        setSubmenuOpen(false)
         setSuccess("Song added to playlist!")
         setTimeout(() => setSuccess(""), 3000)
       } else {
@@ -183,51 +218,175 @@ const Songs = () => {
     }
   }
 
+  const handleSongCardClick = (song) => {
+    setSelectedSongForPreview(song)
+  }
+
+  const handleEllipsisClick = (e, songId) => {
+    e.stopPropagation()
+    setMenuOpen(menuOpen === songId ? null : songId)
+    setSubmenuOpen(false)
+  }
+
+  // Styles
   const containerStyle = {
     minHeight: "calc(100vh - 50px)",
     backgroundColor: "#FFE4F3",
+    padding: "0",
+  }
+
+  const twoColumnLayoutStyle = {
+    display: "flex",
+    minHeight: "calc(100vh - 50px)",
+    gap: "0",
+  }
+
+  const leftPanelStyle = {
+    width: "280px",
+    backgroundColor: "#FFFDE7",
     padding: "20px",
+    borderRight: "1px solid #ddd",
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
   }
 
-  const contentStyle = {
-    maxWidth: "1200px",
-    margin: "0 auto",
+  const rightPanelStyle = {
+    flex: 1,
+    padding: "20px",
+    display: "flex",
+    flexDirection: "column",
   }
 
-  const titleStyle = {
+  const panelTitleStyle = {
     fontSize: "28px",
     fontWeight: "bold",
     color: "#9C27B0",
-    marginBottom: "20px",
+    marginBottom: "10px",
   }
 
-  const searchContainerStyle = {
+  const inputContainerStyle = {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+  }
+
+  const inputFieldStyle = {
+    height: "44px",
+    width: "100%",
+    padding: "10px 40px 10px 12px",
+    fontSize: "14px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    backgroundColor: "white",
+    outline: "none",
+  }
+
+  const clearButtonStyle = {
+    position: "absolute",
+    right: "10px",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    fontSize: "18px",
+    color: "#999",
+    padding: "0",
+    width: "20px",
+    height: "20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }
+
+  const buttonRowStyle = {
     display: "flex",
     gap: "10px",
-    marginBottom: "20px",
-    flexWrap: "wrap",
+    marginTop: "10px",
   }
 
-  const inputStyle = {
-    flex: 1,
-    minWidth: "200px",
-    padding: "10px",
-    fontSize: "14px",
-    border: "1px solid #ddd",
+  const searchButtonStyle = {
+    backgroundColor: "#9C27B0",
+    color: "white",
+    border: "none",
+    padding: "10px 20px",
     borderRadius: "4px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: "14px",
+    height: "40px",
+    flex: 1,
   }
 
-  const selectStyle = {
-    padding: "10px",
+  const clearFiltersButtonStyle = {
+    backgroundColor: "white",
+    color: "#9C27B0",
+    border: "2px solid #9C27B0",
+    padding: "10px 20px",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontWeight: "bold",
     fontSize: "14px",
-    border: "1px solid #ddd",
+    height: "40px",
+    flex: 1,
+  }
+
+  const youtubePlayerContainerStyle = {
+    marginTop: "20px",
+    width: "100%",
+    height: "200px",
+    backgroundColor: "#333",
+    borderRadius: "8px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#999",
+    fontSize: "14px",
+    overflow: "hidden",
+  }
+
+  const headerRowStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "20px",
+  }
+
+  const sortContainerStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  }
+
+  const sortLabelStyle = {
+    fontSize: "14px",
+    fontWeight: "bold",
+    color: "#333",
+  }
+
+  const sortSelectStyle = {
+    padding: "8px 12px",
+    fontSize: "14px",
+    border: "1px solid #ccc",
     borderRadius: "4px",
     backgroundColor: "white",
     cursor: "pointer",
+    minWidth: "200px",
   }
 
-  const createButtonStyle = {
-    backgroundColor: "#228B22",
+  const resultsInfoStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "20px",
+  }
+
+  const resultsCountStyle = {
+    fontSize: "16px",
+    color: "#666",
+    fontWeight: "500",
+  }
+
+  const newSongButtonStyle = {
+    backgroundColor: "#9C27B0",
     color: "white",
     border: "none",
     padding: "10px 20px",
@@ -240,75 +399,106 @@ const Songs = () => {
   const songsListStyle = {
     display: "flex",
     flexDirection: "column",
-    gap: "10px",
+    gap: "12px",
+    flex: 1,
+    overflowY: "auto",
   }
 
-  const songCardStyle = {
-    backgroundColor: "#FFFDE7",
-    padding: "15px",
-    borderRadius: "8px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+  const getSongCardStyle = (song) => {
+    const isOwned = user?.id === song.owner_id
+    const isSelected = selectedSongForPreview?.id === song.id
+
+    return {
+      backgroundColor: isOwned ? "#FFF9C4" : "white",
+      border: isSelected ? "2px solid #FF6B00" : "1px solid #ddd",
+      borderRadius: "8px",
+      padding: "12px 16px",
+      cursor: "pointer",
+      position: "relative",
+    }
+  }
+
+  const songCardHeaderStyle = {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
+    alignItems: "flex-start",
+    marginBottom: "8px",
   }
 
-  const songInfoStyle = {
-    flex: 1,
-    minWidth: "250px",
-  }
-
-  const songTitleStyle = {
+  const songTitleLineStyle = {
     fontSize: "16px",
     fontWeight: "bold",
-    color: "#9C27B0",
-    marginBottom: "5px",
+    color: "#333",
+    flex: 1,
   }
 
-  const songMetaStyle = {
-    fontSize: "12px",
+  const ellipsisButtonStyle = {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    fontSize: "20px",
+    color: "#666",
+    padding: "0 8px",
+    lineHeight: "1",
+  }
+
+  const songMetaRowStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "14px",
     color: "#666",
   }
 
-  const actionButtonsStyle = {
-    display: "flex",
-    gap: "8px",
-    marginLeft: "15px",
-    flexWrap: "wrap",
-  }
-
-  const smallButtonStyle = {
-    padding: "6px 12px",
-    fontSize: "12px",
-    border: "none",
+  const ellipsisMenuStyle = {
+    position: "absolute",
+    top: "40px",
+    right: "10px",
+    backgroundColor: "#E1BEE7",
+    border: "1px solid #9C27B0",
     borderRadius: "4px",
+    boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+    zIndex: 1000,
+    minWidth: "180px",
+  }
+
+  const menuItemStyle = {
+    padding: "12px 16px",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontSize: "14px",
+    color: "#333",
+    borderBottom: "1px solid #CE93D8",
+    position: "relative",
   }
 
-  const addButtonStyle = {
-    ...smallButtonStyle,
-    backgroundColor: "#228B22",
-    color: "white",
+  const menuItemHoverStyle = {
+    backgroundColor: "#CE93D8",
   }
 
-  const editButtonStyle = {
-    ...smallButtonStyle,
-    backgroundColor: "#7B1FA2",
-    color: "white",
+  const submenuStyle = {
+    position: "absolute",
+    top: "0",
+    left: "100%",
+    backgroundColor: "#FFCDD2",
+    border: "1px solid #E91E63",
+    borderRadius: "4px",
+    boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+    minWidth: "200px",
+    maxHeight: "300px",
+    overflowY: "auto",
   }
 
-  const deleteButtonStyle = {
-    ...smallButtonStyle,
-    backgroundColor: "#C62828",
-    color: "white",
+  const submenuItemStyle = {
+    padding: "10px 14px",
+    cursor: "pointer",
+    fontSize: "14px",
+    color: "#333",
+    borderBottom: "1px solid #F8BBD0",
   }
 
   const emptyStateStyle = {
     textAlign: "center",
     padding: "40px",
-    backgroundColor: "#FFFDE7",
+    backgroundColor: "white",
     borderRadius: "8px",
     color: "#666",
   }
@@ -334,7 +524,7 @@ const Songs = () => {
   if (loading) {
     return (
       <div style={containerStyle}>
-        <div style={contentStyle}>
+        <div style={{ padding: "40px", textAlign: "center" }}>
           <p>Loading songs...</p>
         </div>
       </div>
@@ -343,98 +533,253 @@ const Songs = () => {
 
   return (
     <div style={containerStyle}>
-      <div style={contentStyle}>
-        <h1 style={titleStyle}>Song Catalog</h1>
+      <div style={twoColumnLayoutStyle}>
+        {/* Left Panel - Search Filters + YouTube Player */}
+        <div style={leftPanelStyle}>
+          <h2 style={panelTitleStyle}>Songs</h2>
 
-        {error && <div style={errorStyle}>{error}</div>}
-        {success && <div style={successStyle}>{success}</div>}
+          {/* 3 Search Input Fields */}
+          <div style={inputContainerStyle}>
+            <input
+              type="text"
+              placeholder="by Title"
+              value={searchTitle}
+              onChange={(e) => setSearchTitle(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+              style={inputFieldStyle}
+            />
+            {searchTitle && (
+              <button style={clearButtonStyle} onClick={() => setSearchTitle("")}>
+                ⊗
+              </button>
+            )}
+          </div>
 
-        <div style={searchContainerStyle}>
-          <input
-            type="text"
-            placeholder={`Search by ${searchType}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={inputStyle}
-          />
-          <select value={searchType} onChange={(e) => setSearchType(e.target.value)} style={selectStyle}>
-            <option value="title">By Title</option>
-            <option value="artist">By Artist</option>
-            <option value="year">By Year</option>
-          </select>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={selectStyle}>
-            <option value="title-asc">Title A-Z</option>
-            <option value="title-desc">Title Z-A</option>
-            <option value="artist-asc">Artist A-Z</option>
-            <option value="artist-desc">Artist Z-A</option>
-            <option value="year-asc">Year Oldest</option>
-            <option value="year-desc">Year Newest</option>
-            <option value="listens-desc">Most Listens</option>
-            <option value="listens-asc">Least Listens</option>
-            <option value="playlists-desc">Most Playlists</option>
-            <option value="playlists-asc">Least Playlists</option>
-          </select>
-          {user && (
-            <button onClick={() => setShowCreateModal(true)} style={createButtonStyle}>
-              + Add Song
+          <div style={inputContainerStyle}>
+            <input
+              type="text"
+              placeholder="by Artist"
+              value={searchArtist}
+              onChange={(e) => setSearchArtist(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+              style={inputFieldStyle}
+            />
+            {searchArtist && (
+              <button style={clearButtonStyle} onClick={() => setSearchArtist("")}>
+                ⊗
+              </button>
+            )}
+          </div>
+
+          <div style={inputContainerStyle}>
+            <input
+              type="text"
+              placeholder="by Year"
+              value={searchYear}
+              onChange={(e) => setSearchYear(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+              style={inputFieldStyle}
+            />
+            {searchYear && (
+              <button style={clearButtonStyle} onClick={() => setSearchYear("")}>
+                ⊗
+              </button>
+            )}
+          </div>
+
+          {/* Search and Clear Buttons */}
+          <div style={buttonRowStyle}>
+            <button onClick={handleSearch} style={searchButtonStyle}>
+              🔍 Search
             </button>
-          )}
+            <button onClick={handleClear} style={clearFiltersButtonStyle}>
+              Clear
+            </button>
+          </div>
+
+          {/* YouTube Preview Player */}
+          <div style={youtubePlayerContainerStyle}>
+            {selectedSongForPreview ? (
+              <iframe
+                width="100%"
+                height="100%"
+                src={`https://www.youtube.com/embed/${selectedSongForPreview.youtube_id}`}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title={`${selectedSongForPreview.title} by ${selectedSongForPreview.artist}`}
+              />
+            ) : (
+              <div>Select a song to preview</div>
+            )}
+          </div>
         </div>
 
-        {filteredSongs.length === 0 ? (
-          <div style={emptyStateStyle}>
-            <p>No songs found. {user ? "Add your first song!" : "Login to add songs."}</p>
+        {/* Right Panel - Results */}
+        <div style={rightPanelStyle}>
+          {error && <div style={errorStyle}>{error}</div>}
+          {success && <div style={successStyle}>{success}</div>}
+
+          {/* Header Row */}
+          <div style={headerRowStyle}>
+            <div style={sortContainerStyle}>
+              <span style={sortLabelStyle}>Sort:</span>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={sortSelectStyle}>
+                <option value="listens-desc">Listens (Hi-Lo)</option>
+                <option value="listens-asc">Listens (Lo-Hi)</option>
+                <option value="playlists-desc">Playlists (Hi-Lo)</option>
+                <option value="playlists-asc">Playlists (Lo-Hi)</option>
+                <option value="title-asc">Title (A-Z)</option>
+                <option value="title-desc">Title (Z-A)</option>
+                <option value="artist-asc">Artist (A-Z)</option>
+                <option value="artist-desc">Artist (Z-A)</option>
+                <option value="year-desc">Year (Hi-Lo)</option>
+                <option value="year-asc">Year (Lo-Hi)</option>
+              </select>
+            </div>
+
+            <div style={resultsInfoStyle}>
+              <span style={resultsCountStyle}>
+                {filteredSongs.length} {filteredSongs.length === 1 ? "Song" : "Songs"}
+              </span>
+              {user && (
+                <button onClick={() => setShowCreateModal(true)} style={newSongButtonStyle}>
+                  New Song
+                </button>
+              )}
+            </div>
           </div>
-        ) : (
-          <div style={songsListStyle}>
-            {filteredSongs.map((song) => (
-              <div key={song.id} style={songCardStyle}>
-                <div style={songInfoStyle}>
-                  <div style={songTitleStyle}>{song.title}</div>
-                  <div style={songMetaStyle}>
-                    {song.artist} • {song.year} • {song.listen_count || 0} listens • In{" "}
-                    {song.playlist_songs?.length || 0} playlists
+
+          {/* Songs List */}
+          {filteredSongs.length === 0 ? (
+            <div style={emptyStateStyle}>
+              <p>No songs found. {user ? "Add your first song!" : "Login to add songs."}</p>
+            </div>
+          ) : (
+            <div style={songsListStyle}>
+              {filteredSongs.map((song) => {
+                const isMenuOpen = menuOpen === song.id
+
+                return (
+                  <div
+                    key={song.id}
+                    style={getSongCardStyle(song)}
+                    onClick={() => handleSongCardClick(song)}
+                  >
+                    <div style={songCardHeaderStyle}>
+                      <div style={songTitleLineStyle}>
+                        {song.title} by {song.artist} ({song.year})
+                      </div>
+                      <button
+                        style={ellipsisButtonStyle}
+                        onClick={(e) => handleEllipsisClick(e, song.id)}
+                      >
+                        ⋮
+                      </button>
+                    </div>
+
+                    <div style={songMetaRowStyle}>
+                      <span>Listens: {(song.listen_count || 0).toLocaleString()}</span>
+                      <span>Playlists: {song.playlist_songs?.length || 0}</span>
+                    </div>
+
+                    {/* Ellipsis Menu */}
+                    {isMenuOpen && (
+                      <div ref={menuRef} style={ellipsisMenuStyle}>
+                        {/* Add to Playlist */}
+                        {user && (
+                          <div
+                            style={menuItemStyle}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = menuItemHoverStyle.backgroundColor
+                              setSubmenuOpen(true)
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = ""
+                            }}
+                          >
+                            Add to Playlist →
+
+                            {submenuOpen && (
+                              <div style={submenuStyle}>
+                                {playlists.length === 0 ? (
+                                  <div style={{ ...submenuItemStyle, cursor: "default" }}>
+                                    No playlists available
+                                  </div>
+                                ) : (
+                                  playlists.map((playlist) => (
+                                    <div
+                                      key={playlist.id}
+                                      style={submenuItemStyle}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleAddToPlaylist(playlist.id, song.id)
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = "#F8BBD0"
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = ""
+                                      }}
+                                    >
+                                      {playlist.name}
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Edit Song - Owner Only */}
+                        {user?.id === song.owner_id && (
+                          <div
+                            style={menuItemStyle}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedSong(song)
+                              setShowEditModal(true)
+                              setMenuOpen(null)
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = menuItemHoverStyle.backgroundColor
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = ""
+                            }}
+                          >
+                            Edit Song
+                          </div>
+                        )}
+
+                        {/* Remove from Catalog - Owner Only */}
+                        {user?.id === song.owner_id && (
+                          <div
+                            style={{ ...menuItemStyle, borderBottom: "none" }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedSong(song)
+                              setShowDeleteModal(true)
+                              setMenuOpen(null)
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = menuItemHoverStyle.backgroundColor
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = ""
+                            }}
+                          >
+                            Remove from Catalog
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div style={actionButtonsStyle}>
-                  {user && (
-                    <button
-                      onClick={() => {
-                        setSelectedSong(song)
-                        setShowAddToPlaylistModal(true)
-                      }}
-                      style={addButtonStyle}
-                    >
-                      Add to Playlist
-                    </button>
-                  )}
-                  {user?.id === song.owner_id && (
-                    <>
-                      <button
-                        onClick={() => {
-                          setSelectedSong(song)
-                          setShowEditModal(true)
-                        }}
-                        style={editButtonStyle}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedSong(song)
-                          setShowDeleteModal(true)
-                        }}
-                        style={deleteButtonStyle}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modals */}
@@ -457,17 +802,6 @@ const Songs = () => {
             setSelectedSong(null)
           }}
           onDelete={handleDeleteSong}
-        />
-      )}
-      {showAddToPlaylistModal && selectedSong && (
-        <AddToPlaylistModal
-          song={selectedSong}
-          playlists={playlists}
-          onClose={() => {
-            setShowAddToPlaylistModal(false)
-            setSelectedSong(null)
-          }}
-          onAdd={handleAddToPlaylist}
         />
       )}
     </div>

@@ -13,10 +13,20 @@ const Playlists = () => {
   const [playlists, setPlaylists] = useState([])
   const [filteredPlaylists, setFilteredPlaylists] = useState([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchType, setSearchType] = useState("name")
-  const [sortBy, setSortBy] = useState("name-asc")
   const [error, setError] = useState("")
+
+  // Search filters - 5 separate fields
+  const [playlistNameFilter, setPlaylistNameFilter] = useState("")
+  const [userNameFilter, setUserNameFilter] = useState("")
+  const [songTitleFilter, setSongTitleFilter] = useState("")
+  const [songArtistFilter, setSongArtistFilter] = useState("")
+  const [songYearFilter, setSongYearFilter] = useState("")
+
+  // Sort
+  const [sortBy, setSortBy] = useState("name-asc")
+
+  // Expanded playlists
+  const [expandedPlaylistIds, setExpandedPlaylistIds] = useState(new Set())
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -31,7 +41,7 @@ const Playlists = () => {
 
   useEffect(() => {
     filterAndSortPlaylists()
-  }, [playlists, searchQuery, searchType, sortBy])
+  }, [playlists, playlistNameFilter, userNameFilter, songTitleFilter, songArtistFilter, songYearFilter, sortBy])
 
   const fetchPlaylists = async () => {
     try {
@@ -53,46 +63,79 @@ const Playlists = () => {
   const filterAndSortPlaylists = () => {
     let filtered = [...playlists]
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      filtered = filtered.filter((p) => {
-        const query = searchQuery.toLowerCase()
-        switch (searchType) {
-          case "name":
-            return p.name.toLowerCase().includes(query)
-          case "owner":
-            return p.owner?.username?.toLowerCase().includes(query)
-          case "song":
-            return p.playlist_songs?.some((ps) => ps.song?.title?.toLowerCase().includes(query))
-          default:
-            return true
-        }
-      })
+    // Apply all filters (AND logic)
+    if (playlistNameFilter.trim()) {
+      filtered = filtered.filter((p) => p.name.toLowerCase().includes(playlistNameFilter.toLowerCase()))
+    }
+
+    if (userNameFilter.trim()) {
+      filtered = filtered.filter((p) =>
+        p.owner?.username?.toLowerCase().includes(userNameFilter.toLowerCase())
+      )
+    }
+
+    if (songTitleFilter.trim()) {
+      filtered = filtered.filter((p) =>
+        p.playlist_songs?.some((ps) => ps.song?.title?.toLowerCase().includes(songTitleFilter.toLowerCase()))
+      )
+    }
+
+    if (songArtistFilter.trim()) {
+      filtered = filtered.filter((p) =>
+        p.playlist_songs?.some((ps) => ps.song?.artist?.toLowerCase().includes(songArtistFilter.toLowerCase()))
+      )
+    }
+
+    if (songYearFilter.trim()) {
+      filtered = filtered.filter((p) =>
+        p.playlist_songs?.some((ps) => ps.song?.year?.toString().includes(songYearFilter.trim()))
+      )
     }
 
     // Sort
     filtered.sort((a, b) => {
-      let compareValue = 0
-      const [sortKey, sortOrder] = sortBy.split("-")
-
-      switch (sortKey) {
-        case "name":
-          compareValue = a.name.localeCompare(b.name)
-          break
-        case "listeners":
-          compareValue = (b.listener_count || 0) - (a.listener_count || 0)
-          break
-        case "owner":
-          compareValue = (a.owner?.username || "").localeCompare(b.owner?.username || "")
-          break
+      switch (sortBy) {
+        case "listeners-hi-lo":
+          return (b.listener_count || 0) - (a.listener_count || 0)
+        case "listeners-lo-hi":
+          return (a.listener_count || 0) - (b.listener_count || 0)
+        case "name-asc":
+          return a.name.localeCompare(b.name)
+        case "name-desc":
+          return b.name.localeCompare(a.name)
+        case "owner-asc":
+          return (a.owner?.username || "").localeCompare(b.owner?.username || "")
+        case "owner-desc":
+          return (b.owner?.username || "").localeCompare(a.owner?.username || "")
         default:
-          compareValue = 0
+          return 0
       }
-
-      return sortOrder === "desc" ? -compareValue : compareValue
     })
 
     setFilteredPlaylists(filtered)
+  }
+
+  const handleSearch = () => {
+    // Trigger filtering (already happens via useEffect)
+    filterAndSortPlaylists()
+  }
+
+  const handleClear = () => {
+    setPlaylistNameFilter("")
+    setUserNameFilter("")
+    setSongTitleFilter("")
+    setSongArtistFilter("")
+    setSongYearFilter("")
+  }
+
+  const togglePlaylistExpanded = (playlistId) => {
+    const newExpanded = new Set(expandedPlaylistIds)
+    if (newExpanded.has(playlistId)) {
+      newExpanded.delete(playlistId)
+    } else {
+      newExpanded.add(playlistId)
+    }
+    setExpandedPlaylistIds(newExpanded)
   }
 
   const handleCreatePlaylist = async (name) => {
@@ -152,51 +195,145 @@ const Playlists = () => {
     }
   }
 
+  // Styles
   const containerStyle = {
     minHeight: "calc(100vh - 50px)",
     backgroundColor: "#FFE4F3",
+    padding: "0",
+  }
+
+  const twoColumnLayoutStyle = {
+    display: "flex",
+    minHeight: "calc(100vh - 50px)",
+    gap: "0",
+  }
+
+  const leftPanelStyle = {
+    width: "280px",
+    backgroundColor: "#FFFDE7",
     padding: "20px",
+    borderRight: "1px solid #ddd",
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
   }
 
-  const contentStyle = {
-    maxWidth: "1200px",
-    margin: "0 auto",
+  const rightPanelStyle = {
+    flex: 1,
+    padding: "20px",
+    display: "flex",
+    flexDirection: "column",
   }
 
-  const titleStyle = {
+  const panelTitleStyle = {
     fontSize: "28px",
     fontWeight: "bold",
     color: "#9C27B0",
-    marginBottom: "20px",
+    marginBottom: "10px",
   }
 
-  const searchContainerStyle = {
+  const inputFieldStyle = {
+    height: "44px",
+    padding: "10px 40px 10px 12px",
+    fontSize: "14px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    backgroundColor: "white",
+    outline: "none",
+    position: "relative",
+  }
+
+  const inputContainerStyle = {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+  }
+
+  const clearButtonStyle = {
+    position: "absolute",
+    right: "10px",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    fontSize: "18px",
+    color: "#999",
+    padding: "0",
+    width: "20px",
+    height: "20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }
+
+  const searchButtonStyle = {
+    backgroundColor: "#9C27B0",
+    color: "white",
+    border: "none",
+    padding: "10px 20px",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: "14px",
+    height: "40px",
+    flex: 1,
+  }
+
+  const clearFiltersButtonStyle = {
+    backgroundColor: "white",
+    color: "#9C27B0",
+    border: "2px solid #9C27B0",
+    padding: "10px 20px",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: "14px",
+    height: "40px",
+    flex: 1,
+  }
+
+  const buttonRowStyle = {
     display: "flex",
     gap: "10px",
+    marginTop: "10px",
+  }
+
+  const headerRowStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: "20px",
-    flexWrap: "wrap",
   }
 
-  const inputStyle = {
-    flex: 1,
-    minWidth: "200px",
-    padding: "10px",
-    fontSize: "14px",
-    border: "1px solid #ddd",
-    borderRadius: "4px",
+  const sortContainerStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
   }
 
-  const selectStyle = {
-    padding: "10px",
+  const sortLabelStyle = {
     fontSize: "14px",
-    border: "1px solid #ddd",
+    fontWeight: "bold",
+    color: "#333",
+  }
+
+  const sortSelectStyle = {
+    padding: "8px 12px",
+    fontSize: "14px",
+    border: "1px solid #ccc",
     borderRadius: "4px",
     backgroundColor: "white",
     cursor: "pointer",
+    minWidth: "200px",
   }
 
-  const createButtonStyle = {
-    backgroundColor: "#228B22",
+  const resultsCountStyle = {
+    fontSize: "16px",
+    color: "#666",
+    fontWeight: "500",
+  }
+
+  const newPlaylistButtonStyle = {
+    backgroundColor: "#9C27B0",
     color: "white",
     border: "none",
     padding: "10px 20px",
@@ -206,79 +343,140 @@ const Playlists = () => {
     fontSize: "14px",
   }
 
-  const playlistsGridStyle = {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
-    gap: "20px",
+  const playlistsListStyle = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+    flex: 1,
+    overflowY: "auto",
   }
 
   const playlistCardStyle = {
-    backgroundColor: "#FFFDE7",
-    padding: "20px",
+    backgroundColor: "white",
+    border: "1px solid #ddd",
     borderRadius: "8px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-    transition: "transform 0.2s",
+    padding: "16px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  }
+
+  const cardHeaderStyle = {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "12px",
+  }
+
+  const avatarStyle = {
+    width: "48px",
+    height: "48px",
+    borderRadius: "50%",
+    backgroundColor: "#9C27B0",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "white",
+    fontWeight: "bold",
+    fontSize: "20px",
+    flexShrink: 0,
+  }
+
+  const cardInfoStyle = {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
   }
 
   const playlistNameStyle = {
-    fontSize: "18px",
+    fontSize: "16px",
     fontWeight: "bold",
     color: "#9C27B0",
-    marginBottom: "10px",
+    margin: 0,
   }
 
-  const playlistMetaStyle = {
-    fontSize: "12px",
+  const ownerNameStyle = {
+    fontSize: "14px",
     color: "#666",
-    marginBottom: "5px",
+    margin: 0,
   }
 
-  const actionButtonsStyle = {
+  const listenerCountStyle = {
+    fontSize: "14px",
+    color: "#9C27B0",
+    margin: 0,
+  }
+
+  const actionButtonsContainerStyle = {
     display: "flex",
     gap: "8px",
-    marginTop: "15px",
-    flexWrap: "wrap",
+    alignItems: "flex-start",
+    flexShrink: 0,
   }
 
-  const smallButtonStyle = {
-    flex: 1,
-    minWidth: "70px",
-    padding: "6px 10px",
+  const actionButtonStyle = {
+    width: "60px",
+    height: "28px",
     fontSize: "12px",
     border: "none",
     borderRadius: "4px",
     cursor: "pointer",
     fontWeight: "bold",
-  }
-
-  const playButtonStyle = {
-    ...smallButtonStyle,
-    backgroundColor: "#9C27B0",
-    color: "white",
-  }
-
-  const editButtonStyle = {
-    ...smallButtonStyle,
-    backgroundColor: "#7B1FA2",
-    color: "white",
-  }
-
-  const copyButtonStyle = {
-    ...smallButtonStyle,
-    backgroundColor: "#228B22",
     color: "white",
   }
 
   const deleteButtonStyle = {
-    ...smallButtonStyle,
-    backgroundColor: "#C62828",
-    color: "white",
+    ...actionButtonStyle,
+    backgroundColor: "#E91E63",
+  }
+
+  const editButtonStyle = {
+    ...actionButtonStyle,
+    backgroundColor: "#9C27B0",
+  }
+
+  const copyButtonStyle = {
+    ...actionButtonStyle,
+    backgroundColor: "#9C27B0",
+  }
+
+  const playButtonStyle = {
+    ...actionButtonStyle,
+    backgroundColor: "#4CAF50",
+  }
+
+  const expandButtonStyle = {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    fontSize: "18px",
+    color: "#666",
+    padding: "4px",
+    width: "28px",
+    height: "28px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }
+
+  const songListStyle = {
+    marginTop: "8px",
+    paddingLeft: "60px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  }
+
+  const songItemStyle = {
+    fontSize: "14px",
+    color: "#333",
+    padding: "4px 0",
   }
 
   const emptyStateStyle = {
     textAlign: "center",
     padding: "40px",
-    backgroundColor: "#FFFDE7",
+    backgroundColor: "white",
     borderRadius: "8px",
     color: "#666",
   }
@@ -295,7 +493,7 @@ const Playlists = () => {
   if (loading) {
     return (
       <div style={containerStyle}>
-        <div style={contentStyle}>
+        <div style={{ padding: "40px", textAlign: "center" }}>
           <p>Loading playlists...</p>
         </div>
       </div>
@@ -304,93 +502,225 @@ const Playlists = () => {
 
   return (
     <div style={containerStyle}>
-      <div style={contentStyle}>
-        <h1 style={titleStyle}>Playlists</h1>
+      <div style={twoColumnLayoutStyle}>
+        {/* Left Panel - Search Filters */}
+        <div style={leftPanelStyle}>
+          <h2 style={panelTitleStyle}>Playlists</h2>
 
-        {error && <div style={errorStyle}>{error}</div>}
+          {/* 5 Search Input Fields */}
+          <div style={inputContainerStyle}>
+            <input
+              type="text"
+              placeholder="by Playlist Name"
+              value={playlistNameFilter}
+              onChange={(e) => setPlaylistNameFilter(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+              style={inputFieldStyle}
+            />
+            {playlistNameFilter && (
+              <button style={clearButtonStyle} onClick={() => setPlaylistNameFilter("")}>
+                ⊗
+              </button>
+            )}
+          </div>
 
-        <div style={searchContainerStyle}>
-          <input
-            type="text"
-            placeholder={`Search by ${searchType}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={inputStyle}
-          />
-          <select value={searchType} onChange={(e) => setSearchType(e.target.value)} style={selectStyle}>
-            <option value="name">By Name</option>
-            <option value="owner">By Owner</option>
-            <option value="song">By Song</option>
-          </select>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={selectStyle}>
-            <option value="name-asc">Name A-Z</option>
-            <option value="name-desc">Name Z-A</option>
-            <option value="listeners-desc">Most Listeners</option>
-            <option value="listeners-asc">Least Listeners</option>
-            <option value="owner-asc">Owner A-Z</option>
-            <option value="owner-desc">Owner Z-A</option>
-          </select>
-          {user && (
-            <button onClick={() => setShowCreateModal(true)} style={createButtonStyle}>
-              + Create
+          <div style={inputContainerStyle}>
+            <input
+              type="text"
+              placeholder="by User Name"
+              value={userNameFilter}
+              onChange={(e) => setUserNameFilter(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+              style={inputFieldStyle}
+            />
+            {userNameFilter && (
+              <button style={clearButtonStyle} onClick={() => setUserNameFilter("")}>
+                ⊗
+              </button>
+            )}
+          </div>
+
+          <div style={inputContainerStyle}>
+            <input
+              type="text"
+              placeholder="by Song Title"
+              value={songTitleFilter}
+              onChange={(e) => setSongTitleFilter(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+              style={inputFieldStyle}
+            />
+            {songTitleFilter && (
+              <button style={clearButtonStyle} onClick={() => setSongTitleFilter("")}>
+                ⊗
+              </button>
+            )}
+          </div>
+
+          <div style={inputContainerStyle}>
+            <input
+              type="text"
+              placeholder="by Song Artist"
+              value={songArtistFilter}
+              onChange={(e) => setSongArtistFilter(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+              style={inputFieldStyle}
+            />
+            {songArtistFilter && (
+              <button style={clearButtonStyle} onClick={() => setSongArtistFilter("")}>
+                ⊗
+              </button>
+            )}
+          </div>
+
+          <div style={inputContainerStyle}>
+            <input
+              type="text"
+              placeholder="by Song Year"
+              value={songYearFilter}
+              onChange={(e) => setSongYearFilter(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+              style={inputFieldStyle}
+            />
+            {songYearFilter && (
+              <button style={clearButtonStyle} onClick={() => setSongYearFilter("")}>
+                ⊗
+              </button>
+            )}
+          </div>
+
+          {/* Search and Clear Buttons */}
+          <div style={buttonRowStyle}>
+            <button onClick={handleSearch} style={searchButtonStyle}>
+              🔍 Search
             </button>
-          )}
+            <button onClick={handleClear} style={clearFiltersButtonStyle}>
+              Clear
+            </button>
+          </div>
         </div>
 
-        {filteredPlaylists.length === 0 ? (
-          <div style={emptyStateStyle}>
-            <p>No playlists found. {user ? "Create your first playlist!" : "Login to create playlists."}</p>
+        {/* Right Panel - Results */}
+        <div style={rightPanelStyle}>
+          {error && <div style={errorStyle}>{error}</div>}
+
+          {/* Header Row */}
+          <div style={headerRowStyle}>
+            <div style={sortContainerStyle}>
+              <span style={sortLabelStyle}>Sort:</span>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={sortSelectStyle}>
+                <option value="listeners-hi-lo">Listeners (Hi-Lo)</option>
+                <option value="listeners-lo-hi">Listeners (Lo-Hi)</option>
+                <option value="name-asc">Playlist Name (A-Z)</option>
+                <option value="name-desc">Playlist Name (Z-A)</option>
+                <option value="owner-asc">User Name (A-Z)</option>
+                <option value="owner-desc">User Name (Z-A)</option>
+              </select>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+              <span style={resultsCountStyle}>
+                {filteredPlaylists.length} {filteredPlaylists.length === 1 ? "Playlist" : "Playlists"}
+              </span>
+              {user && (
+                <button onClick={() => setShowCreateModal(true)} style={newPlaylistButtonStyle}>
+                  New Playlist
+                </button>
+              )}
+            </div>
           </div>
-        ) : (
-          <div style={playlistsGridStyle}>
-            {filteredPlaylists.map((playlist) => (
-              <div key={playlist.id} style={playlistCardStyle}>
-                <h3 style={playlistNameStyle}>{playlist.name}</h3>
-                <p style={playlistMetaStyle}>Owner: {playlist.owner?.username || "Unknown"}</p>
-                <p style={playlistMetaStyle}>Listeners: {playlist.listener_count || 0}</p>
-                <p style={playlistMetaStyle}>Songs: {playlist.playlist_songs?.length || 0}</p>
-                <div style={actionButtonsStyle}>
-                  <button
-                    onClick={() => {
-                      setSelectedPlaylist(playlist)
-                      setShowPlayModal(true)
-                    }}
-                    style={playButtonStyle}
-                  >
-                    Play
-                  </button>
-                  {user?.id === playlist.owner_id && (
-                    <>
-                      <button
-                        onClick={() => {
-                          setSelectedPlaylist(playlist)
-                          setShowEditModal(true)
-                        }}
-                        style={editButtonStyle}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedPlaylist(playlist)
-                          setShowDeleteModal(true)
-                        }}
-                        style={deleteButtonStyle}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
-                  {user && user?.id !== playlist.owner_id && (
-                    <button onClick={() => handleCopyPlaylist(playlist.id)} style={copyButtonStyle}>
-                      Copy
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+
+          {/* Playlists List */}
+          {filteredPlaylists.length === 0 ? (
+            <div style={emptyStateStyle}>
+              <p>No playlists found. {user ? "Create your first playlist!" : "Login to create playlists."}</p>
+            </div>
+          ) : (
+            <div style={playlistsListStyle}>
+              {filteredPlaylists.map((playlist) => {
+                const isOwner = user?.id === playlist.owner_id
+                const isExpanded = expandedPlaylistIds.has(playlist.id)
+                const songs = playlist.playlist_songs || []
+
+                return (
+                  <div key={playlist.id} style={playlistCardStyle}>
+                    <div style={cardHeaderStyle}>
+                      {/* Avatar */}
+                      <div style={avatarStyle}>
+                        {playlist.owner?.username?.[0]?.toUpperCase() || "?"}
+                      </div>
+
+                      {/* Playlist Info */}
+                      <div style={cardInfoStyle}>
+                        <h3 style={playlistNameStyle}>{playlist.name}</h3>
+                        <p style={ownerNameStyle}>{playlist.owner?.username || "Unknown"}</p>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div style={actionButtonsContainerStyle}>
+                        {isOwner && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setSelectedPlaylist(playlist)
+                                setShowDeleteModal(true)
+                              }}
+                              style={deleteButtonStyle}
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedPlaylist(playlist)
+                                setShowEditModal(true)
+                              }}
+                              style={editButtonStyle}
+                            >
+                              Edit
+                            </button>
+                          </>
+                        )}
+                        {user && !isOwner && (
+                          <button onClick={() => handleCopyPlaylist(playlist.id)} style={copyButtonStyle}>
+                            Copy
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setSelectedPlaylist(playlist)
+                            setShowPlayModal(true)
+                          }}
+                          style={playButtonStyle}
+                        >
+                          Play
+                        </button>
+                        <button onClick={() => togglePlaylistExpanded(playlist.id)} style={expandButtonStyle}>
+                          {isExpanded ? "∧" : "∨"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Expanded Song List */}
+                    {isExpanded && songs.length > 0 && (
+                      <div style={songListStyle}>
+                        {songs
+                          .sort((a, b) => a.position - b.position)
+                          .map((ps, index) => (
+                            <div key={ps.id} style={songItemStyle}>
+                              {index + 1}. {ps.song?.title || "Unknown"} by {ps.song?.artist || "Unknown"} (
+                              {ps.song?.year || "N/A"})
+                            </div>
+                          ))}
+                      </div>
+                    )}
+
+                    {/* Listener Count */}
+                    <p style={listenerCountStyle}>{playlist.listener_count || 0} Listeners</p>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modals */}
