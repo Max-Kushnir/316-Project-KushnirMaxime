@@ -16,7 +16,7 @@ This project was bootstrapped with [Create React App](https://github.com/faceboo
    npm install
    ```
 
-3. Ensure the backend server is running on `http://localhost:3001`
+3. Ensure the backend server is running on `http://localhost:3000`
 
 4. Start the development server:
    ```bash

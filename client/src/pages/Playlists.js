@@ -39,7 +39,7 @@ const Playlists = () => {
       setError("")
       const result = await api.getPlaylists()
       if (result.success) {
-        setPlaylists(result.data)
+        setPlaylists(result.data.playlists || [])
       } else {
         setError("Failed to load playlists")
       }
