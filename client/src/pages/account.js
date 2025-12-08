@@ -68,6 +68,47 @@ const Account = () => {
     setLoading(false)
   }
 
+  // InputWithClear component for fields with clear button
+  const InputWithClear = ({ value, onChange, type = "text", disabled = false, ...props }) => (
+    <div style={{ position: "relative" }}>
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        style={{
+          ...inputStyle,
+          paddingRight: value && !disabled ? "35px" : "12px",
+          backgroundColor: disabled ? "#e0e0e0" : "white",
+          cursor: disabled ? "not-allowed" : "text",
+        }}
+        {...props}
+      />
+      {value && !disabled && (
+        <button
+          type="button"
+          onClick={() => onChange({ target: { value: "" } })}
+          style={{
+            position: "absolute",
+            right: "10px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#999",
+            fontSize: "18px",
+            padding: "0",
+            lineHeight: "1",
+          }}
+          aria-label="Clear"
+        >
+          ⊗
+        </button>
+      )}
+    </div>
+  )
+
   const containerStyle = {
     display: "flex",
     justifyContent: "center",
@@ -108,29 +149,42 @@ const Account = () => {
   }
 
   const inputStyle = {
-    padding: "12px",
+    height: "44px",
+    padding: "0 12px",
     fontSize: "14px",
-    border: "1px solid #ddd",
+    border: "1px solid #999",
     borderRadius: "4px",
     fontFamily: "inherit",
+    width: "100%",
+    boxSizing: "border-box",
+    outline: "none",
+    transition: "border 0.2s",
   }
 
-  const submitButtonStyle = {
+  const completeButtonStyle = {
     backgroundColor: "#9C27B0",
     color: "white",
     border: "none",
-    padding: "12px",
-    fontSize: "16px",
-    fontWeight: "bold",
+    height: "40px",
+    padding: "0 20px",
+    fontSize: "14px",
+    fontWeight: "500",
     borderRadius: "4px",
-    cursor: "pointer",
-    marginTop: "10px",
-    transition: "background-color 0.2s",
+    cursor: loading ? "not-allowed" : "pointer",
+    flex: 1,
   }
 
   const cancelButtonStyle = {
-    ...submitButtonStyle,
-    backgroundColor: "#7B1FA2",
+    backgroundColor: "white",
+    color: "#9C27B0",
+    border: "2px solid #9C27B0",
+    height: "40px",
+    padding: "0 20px",
+    fontSize: "14px",
+    fontWeight: "500",
+    borderRadius: "4px",
+    cursor: "pointer",
+    flex: 1,
   }
 
   const errorStyle = {
@@ -152,21 +206,36 @@ const Account = () => {
   }
 
   const avatarPreviewStyle = {
-    width: "100px",
-    height: "100px",
+    width: "80px",
+    height: "80px",
     borderRadius: "50%",
     objectFit: "cover",
-    marginTop: "10px",
     border: "2px solid #9C27B0",
   }
 
-  const userEmailStyle = {
+  const placeholderAvatarStyle = {
+    width: "80px",
+    height: "80px",
+    borderRadius: "50%",
+    backgroundColor: "#f0f0f0",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "40px",
+    color: "#999",
+    border: "2px solid #ddd",
+  }
+
+  const selectButtonStyle = {
+    backgroundColor: "#333333",
+    color: "white",
+    border: "none",
+    height: "40px",
+    padding: "0 20px",
     fontSize: "14px",
-    color: "#666",
-    marginBottom: "20px",
-    padding: "10px",
-    backgroundColor: "#f5f5f5",
+    fontWeight: "500",
     borderRadius: "4px",
+    cursor: "pointer",
   }
 
   const helperTextStyle = {
@@ -175,84 +244,96 @@ const Account = () => {
     marginTop: "4px",
   }
 
-  const dividerStyle = {
-    height: "1px",
-    backgroundColor: "#ddd",
-    margin: "20px 0",
-  }
-
   return (
-    <div style={containerStyle}>
-      <div style={formContainerStyle}>
-        <h1 style={titleStyle}>Edit Account</h1>
+    <>
+      <style>
+        {`
+          input:focus {
+            border: 2px solid #9C27B0 !important;
+          }
+          input::placeholder {
+            color: #999999;
+            font-style: italic;
+          }
+        `}
+      </style>
+      <div style={containerStyle}>
+        <div style={formContainerStyle}>
+          <h1 style={titleStyle}>Edit Account</h1>
 
-        <div style={userEmailStyle}>
-          <strong>Email:</strong> {user?.email}
-          <div style={helperTextStyle}>(email cannot be changed)</div>
+          {error && <div style={errorStyle}>{error}</div>}
+          {success && <div style={successStyle}>{success}</div>}
+
+          <form onSubmit={handleSubmit}>
+            {/* Avatar Image - FIRST per Section 5.3 */}
+            <div style={formGroupStyle}>
+              <label style={labelStyle}>Avatar Image</label>
+              <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="Avatar preview" style={avatarPreviewStyle} />
+                ) : (
+                  <div style={placeholderAvatarStyle}>👤</div>
+                )}
+                <label style={selectButtonStyle}>
+                  Select
+                  <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
+                </label>
+              </div>
+            </div>
+
+            {/* User Name - SECOND per Section 5.3 */}
+            <div style={formGroupStyle}>
+              <label style={labelStyle}>User Name</label>
+              <InputWithClear type="text" value={username} onChange={(e) => setUsername(e.target.value)} required />
+            </div>
+
+            {/* Email - THIRD per Section 5.3 (read-only/disabled) */}
+            <div style={formGroupStyle}>
+              <label style={labelStyle}>Email</label>
+              <InputWithClear
+                type="email"
+                value={user?.email || ""}
+                onChange={() => {}}
+                disabled={true}
+              />
+              <div style={helperTextStyle}>(email cannot be changed)</div>
+            </div>
+
+            {/* New Password - FOURTH per Section 5.3 (optional) */}
+            <div style={formGroupStyle}>
+              <label style={labelStyle}>New Password</label>
+              <InputWithClear
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Leave blank to keep current password"
+              />
+              <div style={helperTextStyle}>(optional)</div>
+            </div>
+
+            {/* Confirm Password - FIFTH per Section 5.3 */}
+            <div style={formGroupStyle}>
+              <label style={labelStyle}>Confirm Password</label>
+              <InputWithClear
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Leave blank to keep current password"
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+              <button type="button" onClick={() => navigate("/playlists")} style={cancelButtonStyle}>
+                Cancel
+              </button>
+              <button type="submit" disabled={loading} style={completeButtonStyle}>
+                {loading ? "Saving..." : "Complete"}
+              </button>
+            </div>
+          </form>
         </div>
-
-        {error && <div style={errorStyle}>{error}</div>}
-        {success && <div style={successStyle}>{success}</div>}
-
-        <form onSubmit={handleSubmit}>
-          <div style={formGroupStyle}>
-            <label style={labelStyle}>Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              style={inputStyle}
-            />
-          </div>
-
-          <div style={dividerStyle} />
-
-          <div style={formGroupStyle}>
-            <label style={labelStyle}>New Password (optional)</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Leave blank to keep current password"
-              style={inputStyle}
-            />
-            <div style={helperTextStyle}>Must be at least 8 characters</div>
-          </div>
-
-          <div style={formGroupStyle}>
-            <label style={labelStyle}>Confirm Password</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Leave blank to keep current password"
-              style={inputStyle}
-            />
-          </div>
-
-          <div style={dividerStyle} />
-
-          <div style={formGroupStyle}>
-            <label style={labelStyle}>Avatar Image</label>
-            <input type="file" accept="image/*" onChange={handleAvatarChange} style={inputStyle} />
-            <div style={helperTextStyle}>Max 5MB</div>
-            {avatarPreview && (
-              <img src={avatarPreview || "/placeholder.svg"} alt="Avatar preview" style={avatarPreviewStyle} />
-            )}
-          </div>
-
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button type="submit" disabled={loading} style={submitButtonStyle}>
-              {loading ? "Saving..." : "Save Changes"}
-            </button>
-            <button type="button" onClick={() => navigate("/playlists")} style={cancelButtonStyle}>
-              Cancel
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
+    </>
   )
 }
 
