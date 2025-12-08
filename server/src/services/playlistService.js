@@ -11,12 +11,23 @@ const { Playlist, User, Song, PlaylistSong } = require('../models');
  */
 const findAll = async (filters = {}, sortBy = 'created_at', sortOrder = 'DESC', userId = null) => {
   const where = {};
-  const include = [{
-    model: User,
-    as: 'owner',
-    attributes: ['username'],
-    required: false
-  }];
+  const include = [
+    {
+      model: User,
+      as: 'owner',
+      attributes: ['username'],
+      required: false
+    },
+    {
+      model: PlaylistSong,
+      as: 'playlistSongs',
+      include: [{
+        model: Song,
+        as: 'song',
+        attributes: ['id', 'title', 'artist', 'year', 'youtube_id']
+      }]
+    }
+  ];
 
   if (filters.name) {
     where.name = { [Op.iLike]: `%${filters.name}%` };
@@ -80,10 +91,16 @@ const findAll = async (filters = {}, sortBy = 'created_at', sortOrder = 'DESC', 
     const pJson = p.toJSON();
     return {
       ...pJson,
-      owner_username: pJson.owner?.username || null
+      owner_username: pJson.owner?.username || null,
+      // Map playlistSongs to playlist_songs for frontend compatibility
+      playlist_songs: (pJson.playlistSongs || []).map(ps => ({
+        id: ps.id,
+        position: ps.position,
+        song: ps.song
+      }))
     };
   });
-};
+};;
 
 /**
  * Find playlist by ID with owner info and songs

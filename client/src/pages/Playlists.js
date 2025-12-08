@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useLocation } from "react-router-dom"
 import { FaSearch } from "react-icons/fa"
 import { useAuth } from "../context/AuthContext"
 import api from "../services/api"
@@ -11,6 +12,7 @@ import DeletePlaylistModal from "../components/modals/DeletePlaylistModal"
 
 const Playlists = () => {
   const { user } = useAuth()
+  const location = useLocation()
   const [playlists, setPlaylists] = useState([])
   const [filteredPlaylists, setFilteredPlaylists] = useState([])
   const [loading, setLoading] = useState(true)
@@ -38,7 +40,7 @@ const Playlists = () => {
 
   useEffect(() => {
     fetchPlaylists()
-  }, [])
+  }, [location.key])
 
   useEffect(() => {
     filterAndSortPlaylists()

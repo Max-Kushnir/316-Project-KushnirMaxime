@@ -38,6 +38,7 @@ const Songs = () => {
 
   const menuRef = useRef(null)
   const addToPlaylistRef = useRef(null)
+  const submenuRef = useRef(null)
   const [submenuPosition, setSubmenuPosition] = useState({ top: 0, left: 0 })
 
   useEffect(() => {
@@ -52,7 +53,9 @@ const Songs = () => {
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      const isInsideMenu = menuRef.current && menuRef.current.contains(event.target)
+      const isInsideSubmenu = submenuRef.current && submenuRef.current.contains(event.target)
+      if (!isInsideMenu && !isInsideSubmenu) {
         setMenuOpen(null)
         setSubmenuOpen(false)
       }
@@ -160,7 +163,7 @@ const Songs = () => {
     try {
       const result = await api.createSong(title, artist, year, youtubeId)
       if (result.success) {
-        setSongs([...songs, result.data])
+        setSongs([...songs, result.data.song])
         setShowCreateModal(false)
         setSuccess("Song created successfully!")
         setTimeout(() => setSuccess(""), 3000)
@@ -176,7 +179,7 @@ const Songs = () => {
     try {
       const result = await api.updateSong(id, title, artist, year, youtubeId)
       if (result.success) {
-        setSongs(songs.map((s) => (s.id === id ? result.data : s)))
+        setSongs(songs.map((s) => (s.id === id ? result.data.song : s)))
         setShowEditModal(false)
         setSelectedSong(null)
         setSuccess("Song updated successfully!")
@@ -719,6 +722,7 @@ const Songs = () => {
                         {/* Add to Playlist */}
                         {user && (
                           <div
+                            key="add-to-playlist"
                             ref={addToPlaylistRef}
                             style={menuItemStyle}
                             onMouseEnter={(e) => {
@@ -739,7 +743,7 @@ const Songs = () => {
                             Add to Playlist <FaArrowRight style={{ marginLeft: "5px" }} />
 
                             {submenuOpen && ReactDOM.createPortal(
-                              <div className="playlist-submenu" style={submenuStyle}>
+                              <div ref={submenuRef} className="playlist-submenu" style={submenuStyle}>
                                 {playlists.length === 0 ? (
                                   <div style={{ ...submenuItemStyle, cursor: "default" }}>
                                     No playlists available
@@ -773,6 +777,7 @@ const Songs = () => {
                         {/* Edit Song - Owner Only */}
                         {user?.id === song.owner_id && (
                           <div
+                            key="edit-song"
                             style={menuItemStyle}
                             onClick={(e) => {
                               e.stopPropagation()
@@ -794,6 +799,7 @@ const Songs = () => {
                         {/* Remove from Catalog - Owner Only */}
                         {user?.id === song.owner_id && (
                           <div
+                            key="remove-from-catalog"
                             style={{ ...menuItemStyle, borderBottom: "none" }}
                             onClick={(e) => {
                               e.stopPropagation()
