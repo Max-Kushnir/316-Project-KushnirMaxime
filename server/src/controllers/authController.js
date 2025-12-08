@@ -25,6 +25,21 @@ const register = async (req, res, next) => {
     // Create user
     const user = await userService.create(email, username, passwordHash, avatar_image);
 
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+    );
+
+    // Set HTTP-only cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+
     sendSuccess(res, 201, { user }, 'Account created successfully');
   } catch (error) {
     next(error);
@@ -55,10 +70,18 @@ const login = async (req, res, next) => {
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
     );
 
-    // Return token and user (without password_hash)
+    // Set HTTP-only cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+
+    // Return user data without token
     const userData = {
       id: user.id,
       email: user.email,
@@ -66,7 +89,7 @@ const login = async (req, res, next) => {
       avatar_image: user.avatar_image
     };
 
-    sendSuccess(res, 200, { token, user: userData }, 'Login successful');
+    sendSuccess(res, 200, { user: userData }, 'Login successful');
   } catch (error) {
     next(error);
   }
@@ -78,7 +101,8 @@ const login = async (req, res, next) => {
  */
 const logout = async (req, res, next) => {
   try {
-    // JWT logout is handled client-side by removing the token
+    // Clear HTTP-only cookie
+    res.clearCookie('token');
     sendSuccess(res, 200, null, 'Logout successful');
   } catch (error) {
     next(error);

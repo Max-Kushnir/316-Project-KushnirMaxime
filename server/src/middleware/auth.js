@@ -4,12 +4,11 @@ const userService = require('../services/userService');
 
 /**
  * Middleware to authenticate JWT token
- * Requires valid token in Authorization header
+ * Requires valid token in HTTP-only cookie
  */
 const authenticateToken = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const token = req.cookies.token;
 
     if (!token) {
       throw new AppError('Authentication required', 401);
@@ -51,8 +50,7 @@ const authenticateToken = async (req, res, next) => {
  */
 const optionalAuth = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = req.cookies.token;
 
     if (!token) {
       req.user = null;
