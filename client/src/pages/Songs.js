@@ -232,7 +232,7 @@ const Songs = () => {
   // Styles
   const containerStyle = {
     minHeight: "calc(100vh - 50px)",
-    backgroundColor: "#FFE4F3",
+    backgroundColor: "#FFFDE7",
     padding: "0",
   }
 
@@ -246,7 +246,6 @@ const Songs = () => {
     width: "280px",
     backgroundColor: "#FFFDE7",
     padding: "20px",
-    borderRight: "1px solid #ddd",
     display: "flex",
     flexDirection: "column",
     gap: "12px",
@@ -255,8 +254,17 @@ const Songs = () => {
   const rightPanelStyle = {
     flex: 1,
     padding: "20px",
+    backgroundColor: "#FFFDE7",
     display: "flex",
     flexDirection: "column",
+  }
+
+  const dividerStyle = {
+    width: "1px",
+    backgroundColor: "black",
+    marginTop: "20px",
+    marginBottom: "20px",
+    alignSelf: "stretch",
   }
 
   const panelTitleStyle = {
@@ -615,6 +623,9 @@ const Songs = () => {
             )}
           </div>
         </div>
+
+        {/* Vertical Divider */}
+        <div style={dividerStyle}></div>
 
         {/* Right Panel - Results */}
         <div style={rightPanelStyle}>

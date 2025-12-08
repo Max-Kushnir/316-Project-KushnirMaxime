@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { FaStepBackward, FaStepForward } from "react-icons/fa"
 import api from "../../services/api"
 
 const PlayPlaylistModal = ({ playlist, onClose }) => {
@@ -166,10 +167,10 @@ const PlayPlaylistModal = ({ playlist, onClose }) => {
                 <div style={playerPlaceholderStyle}>YouTube Player Coming Soon</div>
                 <div style={controlsStyle}>
                   <button onClick={handlePrevious} style={controlButtonStyle}>
-                    ⏮ Previous
+                    <FaStepBackward style={{ marginRight: "6px" }} /> Previous
                   </button>
                   <button onClick={handleNext} style={controlButtonStyle}>
-                    Next ⏭
+                    Next <FaStepForward style={{ marginLeft: "6px" }} />
                   </button>
                   <button onClick={() => setRepeatMode(repeatMode === "off" ? "all" : "off")} style={repeatButtonStyle}>
                     Repeat: {repeatMode}

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { FaUser } from "react-icons/fa"
+import { FaLock, FaUser } from "react-icons/fa"
 import { useAuth } from "../context/AuthContext"
 
 // InputWithClear component OUTSIDE the main component to prevent re-creation on render
@@ -130,7 +130,7 @@ const Account = () => {
   }
 
   const formContainerStyle = {
-    maxWidth: "400px",
+    maxWidth: "600px",
     width: "100%",
     textAlign: "left",
   }
@@ -138,9 +138,37 @@ const Account = () => {
   const titleStyle = {
     fontSize: "28px",
     fontWeight: "bold",
-    color: "#9C27B0",
+    color: "#333333",
     marginBottom: "30px",
     textAlign: "center",
+  }
+
+  const lockEmojiStyle = {
+    fontSize: "32px",
+    textAlign: "center",
+    marginBottom: "10px",
+  }
+
+  const formRowStyle = {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    gap: "20px",
+  }
+
+  const avatarColumnStyle = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    paddingTop: "25px",
+  }
+
+  const inputsColumnStyle = {
+    display: "flex",
+    flexDirection: "column",
+    maxWidth: "400px",
+    width: "100%",
   }
 
   const formGroupStyle = {
@@ -151,8 +179,8 @@ const Account = () => {
 
   const labelStyle = {
     fontSize: "14px",
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: "normal",
+    color: "#666",
     marginBottom: "8px",
   }
 
@@ -238,8 +266,7 @@ const Account = () => {
     backgroundColor: "#333333",
     color: "white",
     border: "none",
-    height: "40px",
-    padding: "0 20px",
+    padding: "6px 14px",
     fontSize: "14px",
     fontWeight: "500",
     borderRadius: "4px",
@@ -275,79 +302,82 @@ const Account = () => {
       <div style={containerStyle}>
         <div style={contentWrapperStyle}>
           <div style={formContainerStyle}>
+            <div style={lockEmojiStyle}><FaLock style={{ color: "black", fontSize: "32px" }} /></div>
             <h1 style={titleStyle}>Edit Account</h1>
 
             {error && <div style={errorStyle}>{error}</div>}
             {success && <div style={successStyle}>{success}</div>}
 
             <form onSubmit={handleSubmit}>
-              {/* Avatar Image - FIRST per Section 5.3 */}
-              <div style={formGroupStyle}>
-                <label style={labelStyle}>Avatar Image</label>
-                <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+              <div style={formRowStyle}>
+                {/* Avatar column - positioned to left of inputs */}
+                <div style={avatarColumnStyle}>
                   {avatarPreview ? (
                     <img src={avatarPreview} alt="Avatar preview" style={avatarPreviewStyle} />
                   ) : (
                     <div style={placeholderAvatarStyle}><FaUser style={{ color: "#999", fontSize: "40px" }} /></div>
                   )}
-                  <label style={selectButtonStyle}>
+                  <label style={{ ...selectButtonStyle, marginTop: "10px" }}>
                     Select
                     <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
                   </label>
                 </div>
-              </div>
 
-              {/* User Name - SECOND per Section 5.3 */}
-              <div style={formGroupStyle}>
-                <label style={labelStyle}>User Name</label>
-                <InputWithClear type="text" value={username} onChange={(e) => setUsername(e.target.value)} required inputStyle={inputStyle} />
-              </div>
+                {/* Inputs column */}
+                <div style={inputsColumnStyle}>
+                  {/* User Name */}
+                  <div style={formGroupStyle}>
+                    <label style={labelStyle}>User Name</label>
+                    <InputWithClear type="text" value={username} onChange={(e) => setUsername(e.target.value)} required inputStyle={inputStyle} />
+                  </div>
 
-              {/* Email - THIRD per Section 5.3 (read-only/disabled) */}
-              <div style={formGroupStyle}>
-                <label style={labelStyle}>Email</label>
-                <InputWithClear
-                  type="email"
-                  value={user?.email || ""}
-                  onChange={() => {}}
-                  disabled={true}
-                  inputStyle={inputStyle}
-                />
-                <div style={helperTextStyle}>(email cannot be changed)</div>
-              </div>
+                  {/* Email (read-only/disabled) */}
+                  <div style={formGroupStyle}>
+                    <label style={labelStyle}>Email</label>
+                    <InputWithClear
+                      type="email"
+                      value={user?.email || ""}
+                      onChange={() => {}}
+                      disabled={true}
+                      inputStyle={inputStyle}
+                    />
+                    <div style={helperTextStyle}>(email cannot be changed)</div>
+                  </div>
 
-              {/* New Password - FOURTH per Section 5.3 (optional) */}
-              <div style={formGroupStyle}>
-                <label style={labelStyle}>New Password</label>
-                <InputWithClear
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Leave blank to keep current password"
-                  inputStyle={inputStyle}
-                />
-                <div style={helperTextStyle}>(optional)</div>
-              </div>
+                  {/* New Password (optional) */}
+                  <div style={formGroupStyle}>
+                    <label style={labelStyle}>New Password</label>
+                    <InputWithClear
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Leave blank to keep current password"
+                      inputStyle={inputStyle}
+                    />
+                    <div style={helperTextStyle}>(optional)</div>
+                  </div>
 
-              {/* Confirm Password - FIFTH per Section 5.3 */}
-              <div style={formGroupStyle}>
-                <label style={labelStyle}>Confirm Password</label>
-                <InputWithClear
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Leave blank to keep current password"
-                  inputStyle={inputStyle}
-                />
-              </div>
+                  {/* Confirm Password */}
+                  <div style={formGroupStyle}>
+                    <label style={labelStyle}>Confirm Password</label>
+                    <InputWithClear
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Leave blank to keep current password"
+                      inputStyle={inputStyle}
+                    />
+                  </div>
 
-              <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
-                <button type="button" onClick={() => navigate("/playlists")} style={cancelButtonStyle}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={loading} style={completeButtonStyle}>
-                  {loading ? "Saving..." : "Complete"}
-                </button>
+                  <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+                    <button type="button" onClick={() => navigate("/playlists")} style={cancelButtonStyle}>
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={loading} style={completeButtonStyle}>
+                      {loading ? "Saving..." : "Complete"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </form>
           </div>

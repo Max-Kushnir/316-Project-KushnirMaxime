@@ -199,7 +199,7 @@ const Playlists = () => {
   // Styles
   const containerStyle = {
     minHeight: "calc(100vh - 50px)",
-    backgroundColor: "#FFE4F3",
+    backgroundColor: "#FFFDE7",
     padding: "0",
   }
 
@@ -213,10 +213,17 @@ const Playlists = () => {
     width: "280px",
     backgroundColor: "#FFFDE7",
     padding: "20px",
-    borderRight: "1px solid #ddd",
     display: "flex",
     flexDirection: "column",
     gap: "12px",
+  }
+
+  const dividerStyle = {
+    width: "1px",
+    backgroundColor: "black",
+    marginTop: "20px",
+    marginBottom: "20px",
+    alignSelf: "stretch",
   }
 
   const rightPanelStyle = {
@@ -599,6 +606,9 @@ const Playlists = () => {
             </button>
           </div>
         </div>
+
+        {/* Vertical Divider */}
+        <div style={dividerStyle} />
 
         {/* Right Panel - Results */}
         <div style={rightPanelStyle}>
