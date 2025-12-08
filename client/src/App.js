@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Welcome from './pages/Welcome';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Playlists from './pages/Playlists';
 
 function App() {
   return (
@@ -16,7 +17,7 @@ function App() {
               <Route path="/" element={<Welcome />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/playlists" element={<div>Playlists Page (TODO)</div>} />
+              <Route path="/playlists" element={<Playlists />} />
               <Route path="/songs" element={<div>Songs Page (TODO)</div>} />
             </Routes>
           </div>
