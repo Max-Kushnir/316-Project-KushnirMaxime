@@ -172,12 +172,12 @@ const copyPlaylist = async (req, res, next) => {
     }
 
     // Generate unique name for the copy
-    let copyName = `${originalPlaylist.name} - Copy`;
+    let copyName = `${originalPlaylist.name} (Copy)`;
     let existing = await playlistService.findByOwnerAndName(ownerId, copyName);
     let counter = 1;
 
     while (existing) {
-      copyName = `${originalPlaylist.name} - Copy ${counter}`;
+      copyName = `${originalPlaylist.name} (Copy ${counter})`;
       existing = await playlistService.findByOwnerAndName(ownerId, copyName);
       counter++;
     }
@@ -185,9 +185,9 @@ const copyPlaylist = async (req, res, next) => {
     // Create new playlist
     const newPlaylist = await playlistService.create(copyName, ownerId);
 
-    // Copy all songs
-    for (const song of originalPlaylist.songs) {
-      await playlistSongService.addSong(newPlaylist.id, song.id);
+    // Copy all songs (deep copy)
+    for (const ps of originalPlaylist.playlist_songs) {
+      await playlistSongService.addSong(newPlaylist.id, ps.song.id);
     }
 
     // Fetch complete playlist with songs

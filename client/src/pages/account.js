@@ -57,22 +57,84 @@ const Account = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [fieldErrors, setFieldErrors] = useState({
+    username: "",
+    password: "",
+    confirmPassword: "",
+    avatar: ""
+  })
+
+  // Computed value for form validity
+  const isFormValid =
+    username.trim() !== "" &&
+    !fieldErrors.username &&
+    !fieldErrors.password &&
+    !fieldErrors.confirmPassword &&
+    !fieldErrors.avatar
+
+  // Real-time validation handlers
+  const handleUsernameChange = (value) => {
+    setUsername(value)
+    if (!value.trim()) {
+      setFieldErrors(prev => ({ ...prev, username: "Username is required" }))
+    } else {
+      setFieldErrors(prev => ({ ...prev, username: "" }))
+    }
+  }
+
+  const handlePasswordChange = (value) => {
+    setPassword(value)
+    if (value && value.length < 8) {
+      setFieldErrors(prev => ({ ...prev, password: "Password must be at least 8 characters" }))
+    } else {
+      setFieldErrors(prev => ({ ...prev, password: "" }))
+    }
+    // Also re-validate confirmPassword if it has a value
+    if (confirmPassword && value !== confirmPassword) {
+      setFieldErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match" }))
+    } else if (confirmPassword) {
+      setFieldErrors(prev => ({ ...prev, confirmPassword: "" }))
+    }
+  }
+
+  const handleConfirmPasswordChange = (value) => {
+    setConfirmPassword(value)
+    if (password && value !== password) {
+      setFieldErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match" }))
+    } else if (password && !value) {
+      setFieldErrors(prev => ({ ...prev, confirmPassword: "Please confirm your password" }))
+    } else {
+      setFieldErrors(prev => ({ ...prev, confirmPassword: "" }))
+    }
+  }
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0]
     if (file) {
+      // Keep existing 5MB check
       if (file.size > 5 * 1024 * 1024) {
-        setError("Image must be less than 5MB")
+        setFieldErrors(prev => ({ ...prev, avatar: "Image must be less than 5MB" }))
         return
       }
 
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const base64String = event.target.result
-        setAvatar(base64String)
-        setAvatarPreview(base64String)
+      // Add dimension validation
+      const img = new Image()
+      img.onload = () => {
+        if (img.width !== 200 || img.height !== 200) {
+          setFieldErrors(prev => ({ ...prev, avatar: "Avatar must be exactly 200x200 pixels" }))
+          setAvatar(null)
+          setAvatarPreview(user?.avatar || null)
+        } else {
+          setFieldErrors(prev => ({ ...prev, avatar: "" }))
+          const reader = new FileReader()
+          reader.onload = (event) => {
+            setAvatar(event.target.result)
+            setAvatarPreview(event.target.result)
+          }
+          reader.readAsDataURL(file)
+        }
       }
-      reader.readAsDataURL(file)
+      img.src = URL.createObjectURL(file)
     }
   }
 
@@ -198,15 +260,15 @@ const Account = () => {
   }
 
   const completeButtonStyle = {
-    backgroundColor: "#9C27B0",
-    color: "white",
+    backgroundColor: isFormValid && !loading ? "#333333" : "#CCCCCC",
+    color: isFormValid && !loading ? "white" : "#666666",
     border: "none",
     height: "40px",
     padding: "0 20px",
     fontSize: "14px",
     fontWeight: "500",
     borderRadius: "4px",
-    cursor: loading ? "not-allowed" : "pointer",
+    cursor: isFormValid && !loading ? "pointer" : "not-allowed",
     flex: 1,
   }
 
@@ -279,6 +341,13 @@ const Account = () => {
     marginTop: "4px",
   }
 
+  const fieldErrorStyle = {
+    color: "#D32F2F",
+    fontSize: "12px",
+    marginTop: "4px",
+    display: "block",
+  }
+
   const copyrightStyle = {
     fontSize: "12px",
     color: "black",
@@ -321,6 +390,8 @@ const Account = () => {
                     Select
                     <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
                   </label>
+                  <div style={{ ...helperTextStyle, textAlign: "center", marginTop: "8px" }}>Image must be 200x200 pixels</div>
+                  {fieldErrors.avatar && <span style={{ ...fieldErrorStyle, textAlign: "center" }}>{fieldErrors.avatar}</span>}
                 </div>
 
                 {/* Inputs column */}
@@ -328,7 +399,8 @@ const Account = () => {
                   {/* User Name */}
                   <div style={formGroupStyle}>
                     <label style={labelStyle}>User Name</label>
-                    <InputWithClear type="text" value={username} onChange={(e) => setUsername(e.target.value)} required inputStyle={inputStyle} />
+                    <InputWithClear type="text" value={username} onChange={(e) => handleUsernameChange(e.target.value)} required inputStyle={inputStyle} />
+                    {fieldErrors.username && <span style={fieldErrorStyle}>{fieldErrors.username}</span>}
                   </div>
 
                   {/* Email (read-only/disabled) */}
@@ -350,11 +422,12 @@ const Account = () => {
                     <InputWithClear
                       type="password"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => handlePasswordChange(e.target.value)}
                       placeholder="Leave blank to keep current password"
                       inputStyle={inputStyle}
                     />
                     <div style={helperTextStyle}>(optional)</div>
+                    {fieldErrors.password && <span style={fieldErrorStyle}>{fieldErrors.password}</span>}
                   </div>
 
                   {/* Confirm Password */}
@@ -363,17 +436,18 @@ const Account = () => {
                     <InputWithClear
                       type="password"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) => handleConfirmPasswordChange(e.target.value)}
                       placeholder="Leave blank to keep current password"
                       inputStyle={inputStyle}
                     />
+                    {fieldErrors.confirmPassword && <span style={fieldErrorStyle}>{fieldErrors.confirmPassword}</span>}
                   </div>
 
                   <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
                     <button type="button" onClick={() => navigate("/playlists")} style={cancelButtonStyle}>
                       Cancel
                     </button>
-                    <button type="submit" disabled={loading} style={completeButtonStyle}>
+                    <button type="submit" disabled={!isFormValid || loading} style={completeButtonStyle}>
                       {loading ? "Saving..." : "Complete"}
                     </button>
                   </div>

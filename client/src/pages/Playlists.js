@@ -463,17 +463,17 @@ const Playlists = () => {
 
   const editButtonStyle = {
     ...actionButtonStyle,
-    backgroundColor: "#9C27B0",
+    backgroundColor: "#2196F3",
   }
 
   const copyButtonStyle = {
     ...actionButtonStyle,
-    backgroundColor: "#9C27B0",
+    backgroundColor: "#4CAF50",
   }
 
   const playButtonStyle = {
     ...actionButtonStyle,
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#FF00FF",
   }
 
   const expandButtonStyle = {

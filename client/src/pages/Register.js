@@ -52,19 +52,40 @@ const Register = () => {
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [fieldErrors, setFieldErrors] = useState({
+    email: "",
+    username: "",
+    password: "",
+    confirmPassword: "",
+    avatar: ""
+  })
   const { register } = useAuth()
   const navigate = useNavigate()
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0]
     if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const base64String = event.target.result
-        setAvatar(base64String)
-        setAvatarPreview(base64String)
+      const img = new Image()
+      img.onload = () => {
+        if (img.width !== 200 || img.height !== 200) {
+          setFieldErrors(prev => ({
+            ...prev,
+            avatar: "Avatar must be exactly 200x200 pixels"
+          }))
+          setAvatar(null)
+          setAvatarPreview(null)
+        } else {
+          setFieldErrors(prev => ({ ...prev, avatar: "" }))
+          const reader = new FileReader()
+          reader.onload = (event) => {
+            const base64String = event.target.result
+            setAvatar(base64String)
+            setAvatarPreview(base64String)
+          }
+          reader.readAsDataURL(file)
+        }
       }
-      reader.readAsDataURL(file)
+      img.src = URL.createObjectURL(file)
     }
   }
 
@@ -72,34 +93,130 @@ const Register = () => {
     e.preventDefault()
     setError("")
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match")
+    // Reset field errors
+    const errors = {
+      email: "",
+      username: "",
+      password: "",
+      confirmPassword: "",
+      avatar: ""
+    }
+
+    // Validate each field
+    if (!email.trim()) {
+      errors.email = "Email is required"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = "Please enter a valid email address"
+    }
+
+    if (!username.trim()) {
+      errors.username = "Username is required"
+    }
+
+    if (!password) {
+      errors.password = "Password is required"
+    } else if (password.length < 8) {
+      errors.password = "Password must be at least 8 characters"
+    }
+
+    if (!confirmPassword) {
+      errors.confirmPassword = "Please confirm your password"
+    } else if (password !== confirmPassword) {
+      errors.confirmPassword = "Passwords do not match"
+    }
+
+    if (!avatar) {
+      errors.avatar = "Please upload an avatar image"
+    }
+
+    // Check if any errors
+    const hasErrors = Object.values(errors).some(err => err !== "")
+    setFieldErrors(errors)
+
+    if (hasErrors) {
       return
     }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters long")
-      return
-    }
-
+    // Proceed with registration
     setLoading(true)
     const result = await register(email, username, password, avatar)
     if (result.success) {
-      navigate("/playlists")
+      navigate("/login")
     } else {
-      setError(result.message || "Registration failed")
+      // Handle backend errors (like email already in use)
+      if (result.message?.toLowerCase().includes("email")) {
+        setFieldErrors(prev => ({ ...prev, email: result.message }))
+      } else {
+        setError(result.message || "Registration failed")
+      }
     }
     setLoading(false)
   }
 
-  // Check if form is valid for enabling Create Account button
+  // Input change handlers with real-time validation
+  const handleEmailChange = (e) => {
+    const value = e.target.value
+    setEmail(value)
+    if (!value.trim()) {
+      setFieldErrors(prev => ({ ...prev, email: "Email is required" }))
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setFieldErrors(prev => ({ ...prev, email: "Please enter a valid email address" }))
+    } else {
+      setFieldErrors(prev => ({ ...prev, email: "" }))
+    }
+  }
+
+  const handleUsernameChange = (e) => {
+    const value = e.target.value
+    setUsername(value)
+    if (!value.trim()) {
+      setFieldErrors(prev => ({ ...prev, username: "Username is required" }))
+    } else {
+      setFieldErrors(prev => ({ ...prev, username: "" }))
+    }
+  }
+
+  const handlePasswordChange = (e) => {
+    const value = e.target.value
+    setPassword(value)
+    if (!value) {
+      setFieldErrors(prev => ({ ...prev, password: "Password is required" }))
+    } else if (value.length < 8) {
+      setFieldErrors(prev => ({ ...prev, password: "Password must be at least 8 characters" }))
+    } else {
+      setFieldErrors(prev => ({ ...prev, password: "" }))
+    }
+    // Also re-validate confirmPassword if it has a value
+    if (confirmPassword) {
+      if (confirmPassword !== value) {
+        setFieldErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match" }))
+      } else {
+        setFieldErrors(prev => ({ ...prev, confirmPassword: "" }))
+      }
+    }
+  }
+
+  const handleConfirmPasswordChange = (e) => {
+    const value = e.target.value
+    setConfirmPassword(value)
+    if (!value) {
+      setFieldErrors(prev => ({ ...prev, confirmPassword: "Please confirm your password" }))
+    } else if (password !== value) {
+      setFieldErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match" }))
+    } else {
+      setFieldErrors(prev => ({ ...prev, confirmPassword: "" }))
+    }
+  }
+
+  // Compute whether form is valid for button state
   const isFormValid =
     email.trim() !== "" &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
     username.trim() !== "" &&
     password.length >= 8 &&
-    password === confirmPassword &&
-    avatar !== null
-
+    confirmPassword === password &&
+    avatar !== null &&
+    !fieldErrors.avatar
 
   const containerStyle = {
     display: "flex",
@@ -189,15 +306,15 @@ const Register = () => {
   }
 
   const submitButtonStyle = {
-    backgroundColor: isFormValid ? "#333333" : "#CCCCCC",
-    color: isFormValid ? "white" : "#666666",
+    backgroundColor: isFormValid && !loading ? "#333333" : "#CCCCCC",
+    color: isFormValid && !loading ? "white" : "#666666",
     border: "none",
     height: "40px",
     padding: "0 20px",
     fontSize: "14px",
     fontWeight: "500",
     borderRadius: "4px",
-    cursor: isFormValid ? "pointer" : "not-allowed",
+    cursor: isFormValid && !loading ? "pointer" : "not-allowed",
     marginTop: "10px",
     width: "100%",
   }
@@ -209,6 +326,13 @@ const Register = () => {
     borderRadius: "4px",
     marginBottom: "20px",
     fontSize: "14px",
+  }
+
+  const fieldErrorStyle = {
+    color: "#D32F2F",
+    fontSize: "12px",
+    marginTop: "4px",
+    display: "block"
   }
 
   const avatarPreviewStyle = {
@@ -241,6 +365,13 @@ const Register = () => {
     fontWeight: "500",
     borderRadius: "4px",
     cursor: "pointer",
+  }
+
+  const avatarHelperStyle = {
+    fontSize: "11px",
+    color: "#666",
+    marginTop: "6px",
+    textAlign: "center",
   }
 
   const linkStyle = {
@@ -297,6 +428,8 @@ const Register = () => {
                     Select
                     <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
                   </label>
+                  <div style={avatarHelperStyle}>Image must be 200x200 pixels</div>
+                  {fieldErrors.avatar && <span style={{ ...fieldErrorStyle, textAlign: "center", maxWidth: "100px" }}>{fieldErrors.avatar}</span>}
                 </div>
 
                 {/* Inputs column */}
@@ -304,13 +437,15 @@ const Register = () => {
                   {/* User Name */}
                   <div style={formGroupStyle}>
                     <label style={labelStyle}>User Name</label>
-                    <InputWithClear type="text" value={username} onChange={(e) => setUsername(e.target.value)} required inputStyle={inputStyle} />
+                    <InputWithClear type="text" value={username} onChange={handleUsernameChange} inputStyle={inputStyle} />
+                    {fieldErrors.username && <span style={fieldErrorStyle}>{fieldErrors.username}</span>}
                   </div>
 
                   {/* Email */}
                   <div style={formGroupStyle}>
                     <label style={labelStyle}>Email</label>
-                    <InputWithClear type="email" value={email} onChange={(e) => setEmail(e.target.value)} required inputStyle={inputStyle} />
+                    <InputWithClear type="email" value={email} onChange={handleEmailChange} inputStyle={inputStyle} />
+                    {fieldErrors.email && <span style={fieldErrorStyle}>{fieldErrors.email}</span>}
                   </div>
 
                   {/* Password */}
@@ -319,10 +454,10 @@ const Register = () => {
                     <InputWithClear
                       type="password"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
+                      onChange={handlePasswordChange}
                       inputStyle={inputStyle}
                     />
+                    {fieldErrors.password && <span style={fieldErrorStyle}>{fieldErrors.password}</span>}
                   </div>
 
                   {/* Password Confirm */}
@@ -331,10 +466,10 @@ const Register = () => {
                     <InputWithClear
                       type="password"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
+                      onChange={handleConfirmPasswordChange}
                       inputStyle={inputStyle}
                     />
+                    {fieldErrors.confirmPassword && <span style={fieldErrorStyle}>{fieldErrors.confirmPassword}</span>}
                   </div>
 
                   <button type="submit" disabled={!isFormValid || loading} style={submitButtonStyle}>
