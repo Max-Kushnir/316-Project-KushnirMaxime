@@ -14,6 +14,16 @@ router.get(
 );
 
 /**
+ * PUT /api/users/profile
+ * Update current user's profile (authenticated users only)
+ */
+router.put(
+  '/profile',
+  authenticateToken,
+  userController.updateOwnProfile
+);
+
+/**
  * PUT /api/users/:id
  * Update user profile (authenticated users only, can only update own profile)
  */

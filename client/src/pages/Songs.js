@@ -21,6 +21,11 @@ const Songs = () => {
   const [searchArtist, setSearchArtist] = useState("")
   const [searchYear, setSearchYear] = useState("")
 
+  // Applied search filters (only update when Search button clicked or Enter pressed)
+  const [appliedSearchTitle, setAppliedSearchTitle] = useState("")
+  const [appliedSearchArtist, setAppliedSearchArtist] = useState("")
+  const [appliedSearchYear, setAppliedSearchYear] = useState("")
+
   const [sortBy, setSortBy] = useState("title-asc")
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -47,7 +52,7 @@ const Songs = () => {
 
   useEffect(() => {
     filterAndSortSongs()
-  }, [songs, searchTitle, searchArtist, searchYear, sortBy])
+  }, [songs, appliedSearchTitle, appliedSearchArtist, appliedSearchYear, sortBy])
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -105,17 +110,17 @@ const Songs = () => {
     }
     let filtered = [...songs]
 
-    // Apply all filters (AND logic)
-    if (searchTitle.trim()) {
-      filtered = filtered.filter((song) => song.title.toLowerCase().includes(searchTitle.toLowerCase()))
+    // Apply all filters (AND logic) - use applied filters, not input filters
+    if (appliedSearchTitle.trim()) {
+      filtered = filtered.filter((song) => song.title.toLowerCase().includes(appliedSearchTitle.toLowerCase()))
     }
 
-    if (searchArtist.trim()) {
-      filtered = filtered.filter((song) => song.artist.toLowerCase().includes(searchArtist.toLowerCase()))
+    if (appliedSearchArtist.trim()) {
+      filtered = filtered.filter((song) => song.artist.toLowerCase().includes(appliedSearchArtist.toLowerCase()))
     }
 
-    if (searchYear.trim()) {
-      filtered = filtered.filter((song) => song.year.toString().includes(searchYear.trim()))
+    if (appliedSearchYear.trim()) {
+      filtered = filtered.filter((song) => song.year.toString().includes(appliedSearchYear.trim()))
     }
 
     // Sort
@@ -152,13 +157,18 @@ const Songs = () => {
   }
 
   const handleSearch = () => {
-    filterAndSortSongs()
+    setAppliedSearchTitle(searchTitle)
+    setAppliedSearchArtist(searchArtist)
+    setAppliedSearchYear(searchYear)
   }
 
   const handleClear = () => {
     setSearchTitle("")
     setSearchArtist("")
     setSearchYear("")
+    setAppliedSearchTitle("")
+    setAppliedSearchArtist("")
+    setAppliedSearchYear("")
   }
 
   const handleCreateSong = async (title, artist, year, youtubeId) => {

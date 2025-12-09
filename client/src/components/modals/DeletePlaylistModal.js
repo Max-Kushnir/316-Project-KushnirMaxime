@@ -1,6 +1,16 @@
 "use client"
 
+import { useRef, useEffect } from "react"
+
 const DeletePlaylistModal = ({ playlist, onClose, onDelete }) => {
+  const modalOverlayRef = useRef(null)
+
+  useEffect(() => {
+    if (modalOverlayRef.current) {
+      modalOverlayRef.current.focus()
+    }
+  }, [])
+
   const handleDelete = async () => {
     await onDelete(playlist.id)
   }
@@ -72,8 +82,16 @@ const DeletePlaylistModal = ({ playlist, onClose, onDelete }) => {
     fontWeight: "bold",
   }
 
+  // Handle Enter key to confirm delete
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      handleDelete()
+    }
+  }
+
   return (
-    <div style={modalOverlayStyle} onClick={onClose}>
+    <div style={modalOverlayStyle} onClick={onClose} onKeyDown={handleKeyDown} tabIndex={-1} ref={modalOverlayRef}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <div style={modalHeaderStyle}>Delete Playlist?</div>
         <div style={modalBodyStyle}>

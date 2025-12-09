@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { FaCopy } from "react-icons/fa"
 import api from "../../services/api"
 
 const EditPlaylistModal = ({ playlist, onClose, onSave }) => {
+  const modalOverlayRef = useRef(null)
   const [name, setName] = useState(playlist.name)
   const [songs, setSongs] = useState(playlist.playlist_songs || [])
   const [loading, setLoading] = useState(false)
@@ -23,6 +24,13 @@ const EditPlaylistModal = ({ playlist, onClose, onSave }) => {
   const [pendingReorder, setPendingReorder] = useState(false)
   const [removedSongIds, setRemovedSongIds] = useState([])
   const [copiedSongMappings, setCopiedSongMappings] = useState([]) // {originalId, newSongId, playlistSongId}
+
+  // Auto-focus on mount for keyboard support
+  useEffect(() => {
+    if (modalOverlayRef.current) {
+      modalOverlayRef.current.focus()
+    }
+  }, [])
 
   // Push action to undo stack and clear redo stack
   const pushToUndoStack = useCallback((action) => {
@@ -217,6 +225,26 @@ const EditPlaylistModal = ({ playlist, onClose, onSave }) => {
         break
     }
   }
+
+  // Keyboard shortcuts: Ctrl+Z for Undo, Ctrl+Y for Redo (Cmd on Mac)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check for Ctrl (Windows) or Cmd (Mac)
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "z" && undoStack.length > 0 && !loading) {
+          e.preventDefault()
+          e.stopPropagation()
+          handleUndo()
+        } else if (e.key === "y" && redoStack.length > 0 && !loading) {
+          e.preventDefault()
+          e.stopPropagation()
+          handleRedo()
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [undoStack.length, redoStack.length, loading])
 
   // Handle close - save all changes to database
   const handleClose = async () => {
@@ -449,8 +477,17 @@ const EditPlaylistModal = ({ playlist, onClose, onSave }) => {
     fontWeight: "bold",
   }
 
+  // Handle Enter key to close modal (save and close)
+  const handleOverlayKeyDown = (e) => {
+    // Only handle plain Enter key (not Ctrl+Enter or Cmd+Enter which could interfere with undo/redo)
+    if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !loading) {
+      e.preventDefault()
+      handleClose()
+    }
+  }
+
   return (
-    <div style={modalOverlayStyle} onClick={handleClose}>
+    <div style={modalOverlayStyle} onClick={handleClose} onKeyDown={handleOverlayKeyDown} tabIndex={-1} ref={modalOverlayRef}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <div style={modalHeaderStyle}>Edit Playlist</div>
         <div style={modalBodyStyle}>

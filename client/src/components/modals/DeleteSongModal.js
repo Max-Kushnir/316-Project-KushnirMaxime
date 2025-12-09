@@ -1,8 +1,25 @@
 "use client"
 
+import { useRef, useEffect } from "react"
+
 const DeleteSongModal = ({ song, onClose, onDelete }) => {
+  const modalOverlayRef = useRef(null)
+
+  useEffect(() => {
+    if (modalOverlayRef.current) {
+      modalOverlayRef.current.focus()
+    }
+  }, [])
+
   const handleDelete = async () => {
     await onDelete(song.id)
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      handleDelete()
+    }
   }
 
   const modalOverlayStyle = {
@@ -80,7 +97,7 @@ const DeleteSongModal = ({ song, onClose, onDelete }) => {
   }
 
   return (
-    <div style={modalOverlayStyle} onClick={onClose}>
+    <div style={modalOverlayStyle} onClick={onClose} onKeyDown={handleKeyDown} tabIndex={-1} ref={modalOverlayRef}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <div style={modalHeaderStyle}>Delete Song?</div>
         <div style={modalBodyStyle}>

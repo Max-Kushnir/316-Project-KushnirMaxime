@@ -54,12 +54,6 @@ const findAll = async (filters = {}, sortBy = 'created_at', sortOrder = 'DESC', 
     where[Op.and] = songConditions;
   }
 
-  // Default: if user is logged in and no filters, show only their playlists
-  const hasFilters = Object.keys(filters).length > 0;
-  if (!hasFilters && userId) {
-    where.owner_id = userId;
-  }
-
   // Build order clause
   let order;
   switch (sortBy) {

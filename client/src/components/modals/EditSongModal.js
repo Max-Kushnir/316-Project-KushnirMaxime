@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 
 const EditSongModal = ({ song, onClose, onSave }) => {
+  const modalOverlayRef = useRef(null)
   const [title, setTitle] = useState(song.title)
   const [artist, setArtist] = useState(song.artist)
   const [year, setYear] = useState(song.year)
@@ -10,8 +11,21 @@ const EditSongModal = ({ song, onClose, onSave }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  useEffect(() => {
+    if (modalOverlayRef.current) {
+      modalOverlayRef.current.focus()
+    }
+  }, [])
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !loading) {
+      e.preventDefault()
+      handleSubmit()
+    }
+  }
+
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    if (e) e.preventDefault()
     setError("")
 
     if (!title.trim() || !artist.trim() || !youtubeId.trim()) {
@@ -139,7 +153,7 @@ const EditSongModal = ({ song, onClose, onSave }) => {
   }
 
   return (
-    <div style={modalOverlayStyle} onClick={onClose}>
+    <div style={modalOverlayStyle} onClick={onClose} onKeyDown={handleKeyDown} ref={modalOverlayRef} tabIndex={-1}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <div style={modalHeaderStyle}>Edit Song</div>
         <div style={modalBodyStyle}>

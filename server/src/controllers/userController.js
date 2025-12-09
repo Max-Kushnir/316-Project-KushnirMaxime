@@ -108,7 +108,73 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
+/**
+ * Update current user's own profile
+ * PUT /api/users/profile
+ * Uses req.user.id from authenticated user
+ */
+const updateOwnProfile = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { username, password, avatar_image, email } = req.body;
+
+    // Prevent email update (Business Rule 11.1)
+    if (email !== undefined) {
+      throw new AppError('Email cannot be changed after account creation', 400);
+    }
+
+    // Build updates object
+    const updates = {};
+
+    if (username !== undefined) {
+      if (!username.trim()) {
+        throw new AppError('Username cannot be empty', 400);
+      }
+      updates.username = username;
+    }
+
+    if (avatar_image !== undefined) {
+      updates.avatar_image = avatar_image;
+    }
+
+    // If password is being updated, validate and hash it
+    if (password !== undefined && password !== '') {
+      if (password.length < 8) {
+        throw new AppError('Password must be at least 8 characters long', 400);
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      updates.password_hash = await bcrypt.hash(password, salt);
+    }
+
+    // Check if there are any updates to make
+    if (Object.keys(updates).length === 0) {
+      throw new AppError('No valid fields to update', 400);
+    }
+
+    // Update user
+    const updatedUser = await userService.update(userId, updates);
+
+    if (!updatedUser) {
+      throw new AppError('Failed to update user profile', 500);
+    }
+
+    // Return updated user data without password_hash
+    const userData = {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      username: updatedUser.username,
+      avatar_image: updatedUser.avatar_image
+    };
+
+    sendSuccess(res, 200, { user: userData }, 'Profile updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getProfile,
-  updateProfile
+  updateProfile,
+  updateOwnProfile
 };
