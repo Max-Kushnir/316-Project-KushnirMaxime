@@ -2,15 +2,19 @@ const request = require('supertest');
 const app = require('../src/index');
 
 /**
- * Creates a test user and returns user data with token
+ * Creates a test user and returns user data with authenticated agent
+ * The agent persists cookies across requests for cookie-based auth
  * @param {string} email - User email
  * @param {string} username - Username
  * @param {string} password - Password
- * @returns {Promise<{user: object, token: string}>}
+ * @returns {Promise<{user: object, agent: object}>}
  */
 async function createTestUser(email, username, password) {
+  // Create an agent to persist cookies across requests
+  const agent = request.agent(app);
+
   // Register the user
-  const registerResponse = await request(app)
+  const registerResponse = await agent
     .post('/api/auth/register')
     .send({ email, username, password });
 
@@ -18,8 +22,8 @@ async function createTestUser(email, username, password) {
     throw new Error(`Failed to register user: ${registerResponse.status} - ${JSON.stringify(registerResponse.body)}`);
   }
 
-  // Login to get the token
-  const loginResponse = await request(app)
+  // Login to ensure cookies are set (registration also sets cookies, but login is explicit)
+  const loginResponse = await agent
     .post('/api/auth/login')
     .send({ email, password });
 
@@ -29,29 +33,19 @@ async function createTestUser(email, username, password) {
 
   return {
     user: loginResponse.body.data.user,
-    token: loginResponse.body.data.token
+    agent: agent
   };
 }
 
 /**
- * Returns authorization header object
- * @param {string} token - JWT token
- * @returns {object} Authorization header
- */
-function getAuthHeader(token) {
-  return { Authorization: `Bearer ${token}` };
-}
-
-/**
- * Creates a test song via API
- * @param {string} token - JWT token
+ * Creates a test song via API using authenticated agent
+ * @param {object} agent - Supertest agent with auth cookies
  * @param {object} songData - Song data
  * @returns {Promise<object>} Created song
  */
-async function createTestSong(token, songData) {
-  const response = await request(app)
+async function createTestSong(agent, songData) {
+  const response = await agent
     .post('/api/songs')
-    .set(getAuthHeader(token))
     .send(songData);
 
   if (response.status !== 201 || !response.body.data) {
@@ -62,15 +56,14 @@ async function createTestSong(token, songData) {
 }
 
 /**
- * Creates a test playlist via API
- * @param {string} token - JWT token
+ * Creates a test playlist via API using authenticated agent
+ * @param {object} agent - Supertest agent with auth cookies
  * @param {object} playlistData - Playlist data
  * @returns {Promise<object>} Created playlist
  */
-async function createTestPlaylist(token, playlistData) {
-  const response = await request(app)
+async function createTestPlaylist(agent, playlistData) {
+  const response = await agent
     .post('/api/playlists')
-    .set(getAuthHeader(token))
     .send(playlistData);
 
   if (response.status !== 201 || !response.body.data) {
@@ -82,7 +75,6 @@ async function createTestPlaylist(token, playlistData) {
 
 module.exports = {
   createTestUser,
-  getAuthHeader,
   createTestSong,
   createTestPlaylist
 };

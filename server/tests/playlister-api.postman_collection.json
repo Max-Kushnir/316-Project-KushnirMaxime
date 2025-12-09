@@ -1,0 +1,2191 @@
+{
+	"info": {
+		"_postman_id": "playlister-api-collection",
+		"name": "Playlister API",
+		"description": "Complete API test collection for Playlister - YouTube playlist management platform.\n\n## Setup Instructions\n\n1. Import this collection into Postman\n2. Create an environment with these variables:\n   - `baseUrl`: Your server URL (default: `http://localhost:4000`)\n   - `testEmail`: Test user email\n   - `testPassword`: Test user password\n\n## Test Flow\n\nRun requests in order within each folder for proper variable setup:\n1. Register/Login to get authentication\n2. Create resources (playlists, songs)\n3. Test operations on created resources\n\n## Authentication\n\nThis API uses HTTP-only cookies for JWT authentication. Postman handles cookies automatically.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:4000",
+			"type": "string"
+		},
+		{
+			"key": "testEmail",
+			"value": "test@example.com",
+			"type": "string"
+		},
+		{
+			"key": "testPassword",
+			"value": "password123",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "playlistId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "songId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "copiedPlaylistId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "copiedSongId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"description": "Authentication endpoints for user registration, login, logout, and session management.",
+			"item": [
+				{
+					"name": "Register User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 201 - Created', function() {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains user data', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('user');",
+									"    pm.expect(json.data.user).to.have.property('id');",
+									"    pm.expect(json.data.user).to.have.property('email');",
+									"    pm.expect(json.data.user).to.have.property('username');",
+									"    pm.expect(json.data.user).to.not.have.property('password_hash');",
+									"});",
+									"",
+									"// Save user ID for later use",
+									"const json = pm.response.json();",
+									"if (json.data && json.data.user && json.data.user.id) {",
+									"    pm.collectionVariables.set('userId', json.data.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{testEmail}}\",\n    \"username\": \"testuser\",\n    \"password\": \"{{testPassword}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Create a new user account.\n\n**Body:**\n- `email` (required): Unique email address\n- `username` (required): Display name\n- `password` (required): Min 8 characters\n- `avatar_image` (optional): Base64 encoded image"
+					},
+					"response": []
+				},
+				{
+					"name": "Register - Duplicate Email (409)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 409 - Conflict', function() {",
+									"    pm.response.to.have.status(409);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});",
+									"",
+									"pm.test('Error message about duplicate email', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.error).to.match(/email|exists|duplicate/i);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{testEmail}}\",\n    \"username\": \"anotheruser\",\n    \"password\": \"password123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Test duplicate email registration - should return 409 Conflict."
+					},
+					"response": []
+				},
+				{
+					"name": "Register - Invalid Data (400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 400 - Bad Request', function() {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"invalid-email\",\n    \"username\": \"\",\n    \"password\": \"short\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Test registration with invalid data - should return 400 Bad Request."
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains user data', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('user');",
+									"    pm.expect(json.data.user).to.have.property('id');",
+									"    pm.expect(json.data.user).to.have.property('email');",
+									"    pm.expect(json.data.user).to.have.property('username');",
+									"});",
+									"",
+									"pm.test('Cookie is set', function() {",
+									"    pm.expect(pm.cookies.has('token')).to.be.true;",
+									"});",
+									"",
+									"// Save user ID",
+									"const json = pm.response.json();",
+									"if (json.data && json.data.user && json.data.user.id) {",
+									"    pm.collectionVariables.set('userId', json.data.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{testEmail}}\",\n    \"password\": \"{{testPassword}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login with email and password. JWT token is set as HTTP-only cookie."
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Invalid Credentials (401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 401 - Unauthorized', function() {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{testEmail}}\",\n    \"password\": \"wrongpassword\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Test login with wrong password - should return 401 Unauthorized."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains user data', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('user');",
+									"    pm.expect(json.data.user).to.have.property('id');",
+									"    pm.expect(json.data.user).to.have.property('email');",
+									"    pm.expect(json.data.user).to.have.property('username');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "me"]
+						},
+						"description": "Get current authenticated user info. Requires valid session cookie."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User - Unauthorized (401)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Clear cookies to simulate unauthenticated request",
+									"pm.cookies.clear();"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 401 - Unauthorized', function() {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "me"]
+						},
+						"description": "Test getting current user without authentication - should return 401."
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/logout",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "logout"]
+						},
+						"description": "Logout current user. Clears the authentication cookie."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"description": "User profile endpoints for viewing and updating user information.",
+			"item": [
+				{
+					"name": "Re-Login (Setup)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Re-authenticated successfully', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"    pm.expect(pm.cookies.has('token')).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{testEmail}}\",\n    \"password\": \"{{testPassword}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Re-login to restore authentication after Logout test."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains user profile', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('user');",
+									"    pm.expect(json.data.user).to.have.property('id');",
+									"    pm.expect(json.data.user).to.have.property('username');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{userId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "{{userId}}"]
+						},
+						"description": "Get user profile by ID. Public endpoint with optional authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Profile - Not Found (404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 404 - Not Found', function() {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/99999",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "99999"]
+						},
+						"description": "Test getting non-existent user - should return 404."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains updated user data', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('user');",
+									"    pm.expect(json.data.user).to.have.property('username');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"updateduser\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{userId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "{{userId}}"]
+						},
+						"description": "Update user profile. Can only update own profile.\n\n**Body:**\n- `username` (optional): New display name\n- `password` (optional): New password (min 8 chars)\n- `avatar_image` (optional): Base64 encoded image"
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Profile - Forbidden (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 403 - Forbidden', function() {",
+									"    pm.response.to.have.status(403);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"hackeduser\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/99999",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "99999"]
+						},
+						"description": "Test updating another user's profile - should return 403 Forbidden."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Playlists",
+			"description": "Playlist CRUD operations including song management within playlists.",
+			"item": [
+				{
+					"name": "Get All Playlists",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains playlists array', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('playlists');",
+									"    pm.expect(json.data.playlists).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists"]
+						},
+						"description": "Get all playlists. Logged-in users see their own playlists by default."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Playlists - Search by Name",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains playlists array', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('playlists');",
+									"    pm.expect(json.data.playlists).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists?name=test",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists"],
+							"query": [
+								{
+									"key": "name",
+									"value": "test"
+								}
+							]
+						},
+						"description": "Search playlists by name (partial, case-insensitive)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Playlists - Search by Username",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists?username=test",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists"],
+							"query": [
+								{
+									"key": "username",
+									"value": "test"
+								}
+							]
+						},
+						"description": "Search playlists by owner username."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Playlists - Sorted by Listeners",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists?sortBy=listener_count&sortOrder=desc",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists"],
+							"query": [
+								{
+									"key": "sortBy",
+									"value": "listener_count"
+								},
+								{
+									"key": "sortOrder",
+									"value": "desc"
+								}
+							]
+						},
+						"description": "Get playlists sorted by listener count (most popular first).\n\n**Sort Options:**\n- `sortBy`: listener_count, name, username\n- `sortOrder`: asc, desc"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Playlist",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 201 - Created', function() {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains playlist data', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('playlist');",
+									"    pm.expect(json.data.playlist).to.have.property('id');",
+									"    pm.expect(json.data.playlist).to.have.property('name');",
+									"    pm.expect(json.data.playlist).to.have.property('owner_id');",
+									"});",
+									"",
+									"// Save playlist ID for later use",
+									"const json = pm.response.json();",
+									"if (json.data && json.data.playlist && json.data.playlist.id) {",
+									"    pm.collectionVariables.set('playlistId', json.data.playlist.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"My Test Playlist\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists"]
+						},
+						"description": "Create a new playlist. Requires authentication.\n\n**Body:**\n- `name` (optional): Playlist name. Defaults to \"Untitled N\""
+					},
+					"response": []
+				},
+				{
+					"name": "Create Playlist - No Name (Default)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 201 - Created', function() {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Playlist has default name', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data.playlist.name).to.match(/^Untitled/);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists"]
+						},
+						"description": "Create playlist without name - should get default \"Untitled N\" name."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Playlist - Unauthorized (401)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.cookies.clear();"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 401 - Unauthorized', function() {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Guest Playlist\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists"]
+						},
+						"description": "Test creating playlist without authentication - should return 401."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Playlist",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains playlist with songs', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('playlist');",
+									"    pm.expect(json.data.playlist).to.have.property('id');",
+									"    pm.expect(json.data.playlist).to.have.property('name');",
+									"    pm.expect(json.data.playlist).to.have.property('playlist_songs');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists/{{playlistId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists", "{{playlistId}}"]
+						},
+						"description": "Get single playlist by ID with all songs."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Playlist - Not Found (404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 404 - Not Found', function() {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists/99999",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists", "99999"]
+						},
+						"description": "Test getting non-existent playlist - should return 404."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Playlist",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Playlist name updated', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('playlist');",
+									"    pm.expect(json.data.playlist.name).to.equal('Updated Playlist Name');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Playlist Name\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists/{{playlistId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists", "{{playlistId}}"]
+						},
+						"description": "Update playlist name. Requires authentication and ownership."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Playlist - Duplicate Name (409)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// This test depends on having another playlist with same name",
+									"// May return 200 if no conflict exists",
+									"pm.test('Status is 200 or 409', function() {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 409]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Untitled 0\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists/{{playlistId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists", "{{playlistId}}"]
+						},
+						"description": "Test updating to duplicate name for same user - should return 409 if conflict."
+					},
+					"response": []
+				},
+				{
+					"name": "Copy Playlist",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 201 - Created', function() {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains copied playlist', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('playlist');",
+									"    pm.expect(json.data.playlist).to.have.property('id');",
+									"    pm.expect(json.data.playlist).to.have.property('name');",
+									"});",
+									"",
+									"// Save copied playlist ID",
+									"const json = pm.response.json();",
+									"if (json.data && json.data.playlist && json.data.playlist.id) {",
+									"    pm.collectionVariables.set('copiedPlaylistId', json.data.playlist.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists/{{playlistId}}/copy",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists", "{{playlistId}}", "copy"]
+						},
+						"description": "Copy a playlist (deep copy with all songs). Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Record Listener",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains listener info', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('isNewListener');",
+									"    pm.expect(json.data).to.have.property('listenerIdentifier');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"sessionId\": \"guest-session-123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists/{{playlistId}}/listen",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists", "{{playlistId}}", "listen"]
+						},
+						"description": "Record a unique listener for a playlist.\n\n**Body (for guests):**\n- `sessionId`: Session identifier for guest users\n\nLogged-in users use their user ID automatically."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Song for Playlist Tests (Setup)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 201 - Created', function() {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"// Save song ID for playlist-song operations",
+									"const json = pm.response.json();",
+									"if (json.data && json.data.song && json.data.song.id) {",
+									"    pm.collectionVariables.set('songId', json.data.song.id);",
+									"    console.log('Set songId to:', json.data.song.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Playlist Test Song\",\n    \"artist\": \"Test Artist\",\n    \"year\": 2024,\n    \"youtube_id\": \"playlist_test_123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/songs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs"]
+						},
+						"description": "Create a song to use in playlist-song operation tests. This ensures songId is set before Add/Remove/Reorder tests."
+					},
+					"response": []
+				},
+				{
+					"name": "Add Song to Playlist",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 or 201', function() {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"songId\": {{songId}}\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists/{{playlistId}}/songs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists", "{{playlistId}}", "songs"]
+						},
+						"description": "Add a song to a playlist. Requires authentication and playlist ownership.\n\n**Body:**\n- `songId` (required): ID of song to add"
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Song from Playlist",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists/{{playlistId}}/songs/{{songId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists", "{{playlistId}}", "songs", "{{songId}}"]
+						},
+						"description": "Remove a song from a playlist. Requires authentication and playlist ownership."
+					},
+					"response": []
+				},
+				{
+					"name": "Reorder Songs in Playlist",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Build songIds array from the songId variable",
+									"const songId = pm.collectionVariables.get('songId');",
+									"if (songId) {",
+									"    pm.variables.set('songIdsArray', JSON.stringify([parseInt(songId)]));",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"songIds\": {{songIdsArray}}\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists/{{playlistId}}/songs/reorder",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists", "{{playlistId}}", "songs", "reorder"]
+						},
+						"description": "Reorder songs in a playlist. Requires authentication and ownership.\n\n**Body:**\n- `songIds` (required): Array of song IDs in desired order"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Playlist",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists/{{copiedPlaylistId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists", "{{copiedPlaylistId}}"]
+						},
+						"description": "Delete a playlist. Requires authentication and ownership. Uses the copied playlist ID to avoid deleting the main test playlist."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Playlist - Forbidden (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 403 or 404', function() {",
+									"    pm.expect(pm.response.code).to.be.oneOf([403, 404]);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/playlists/99999",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "playlists", "99999"]
+						},
+						"description": "Test deleting playlist not owned by user - should return 403 or 404."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Songs",
+			"description": "Song catalog CRUD operations.",
+			"item": [
+				{
+					"name": "Get All Songs",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains songs array', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('songs');",
+									"    pm.expect(json.data.songs).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/songs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs"]
+						},
+						"description": "Get all songs in the catalog."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Songs - Search by Title",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/songs?title=test",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs"],
+							"query": [
+								{
+									"key": "title",
+									"value": "test"
+								}
+							]
+						},
+						"description": "Search songs by title (partial, case-insensitive)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Songs - Search by Artist",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/songs?artist=beatles",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs"],
+							"query": [
+								{
+									"key": "artist",
+									"value": "beatles"
+								}
+							]
+						},
+						"description": "Search songs by artist name."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Songs - Search by Year",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/songs?year=2020",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs"],
+							"query": [
+								{
+									"key": "year",
+									"value": "2020"
+								}
+							]
+						},
+						"description": "Search songs by year."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Songs - Sorted by Listens",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/songs?sortBy=listen_count&sortOrder=desc",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs"],
+							"query": [
+								{
+									"key": "sortBy",
+									"value": "listen_count"
+								},
+								{
+									"key": "sortOrder",
+									"value": "desc"
+								}
+							]
+						},
+						"description": "Get songs sorted by listen count.\n\n**Sort Options:**\n- `sortBy`: listen_count, playlist_count, title, artist, year\n- `sortOrder`: asc, desc"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Song",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 201 - Created', function() {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains song data', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('song');",
+									"    pm.expect(json.data.song).to.have.property('id');",
+									"    pm.expect(json.data.song).to.have.property('title');",
+									"    pm.expect(json.data.song).to.have.property('artist');",
+									"    pm.expect(json.data.song).to.have.property('year');",
+									"    pm.expect(json.data.song).to.have.property('youtube_id');",
+									"});",
+									"",
+									"// Save song ID for later use",
+									"const json = pm.response.json();",
+									"if (json.data && json.data.song && json.data.song.id) {",
+									"    pm.collectionVariables.set('songId', json.data.song.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Test Song\",\n    \"artist\": \"Test Artist\",\n    \"year\": 2024,\n    \"youtube_id\": \"dQw4w9WgXcQ\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/songs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs"]
+						},
+						"description": "Add a new song to the catalog. Requires authentication.\n\n**Body:**\n- `title` (required): Song title\n- `artist` (required): Artist name\n- `year` (required): Release year\n- `youtube_id` (required): YouTube video ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Song - Duplicate (409)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 409 - Conflict', function() {",
+									"    pm.response.to.have.status(409);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});",
+									"",
+									"pm.test('Error message about duplicate', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.error).to.match(/exists|duplicate/i);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Test Song\",\n    \"artist\": \"Test Artist\",\n    \"year\": 2024,\n    \"youtube_id\": \"dQw4w9WgXcQ\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/songs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs"]
+						},
+						"description": "Test creating duplicate song (same title, artist, year) - should return 409."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Song - Invalid Data (400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 400 - Bad Request', function() {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"\",\n    \"artist\": \"\",\n    \"year\": \"not-a-year\",\n    \"youtube_id\": \"\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/songs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs"]
+						},
+						"description": "Test creating song with invalid data - should return 400."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Song",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains song data', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('song');",
+									"    pm.expect(json.data.song).to.have.property('id');",
+									"    pm.expect(json.data.song).to.have.property('title');",
+									"    pm.expect(json.data.song).to.have.property('artist');",
+									"    pm.expect(json.data.song).to.have.property('year');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/songs/{{songId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs", "{{songId}}"]
+						},
+						"description": "Get single song by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Song - Not Found (404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 404 - Not Found', function() {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/songs/99999",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs", "99999"]
+						},
+						"description": "Test getting non-existent song - should return 404."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Song",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Song data updated', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('song');",
+									"    pm.expect(json.data.song.title).to.equal('Updated Song Title');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Updated Song Title\",\n    \"artist\": \"Updated Artist\",\n    \"year\": 2025,\n    \"youtube_id\": \"dQw4w9WgXcQ\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/songs/{{songId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs", "{{songId}}"]
+						},
+						"description": "Update song details. Requires authentication and ownership."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Song - Forbidden (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 403 or 404', function() {",
+									"    pm.expect(pm.response.code).to.be.oneOf([403, 404]);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Hacked Title\",\n    \"artist\": \"Hacker\",\n    \"year\": 2025,\n    \"youtube_id\": \"hacked123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/songs/99999",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs", "99999"]
+						},
+						"description": "Test updating song not owned by user - should return 403 or 404."
+					},
+					"response": []
+				},
+				{
+					"name": "Copy Song",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 201 - Created', function() {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains copied song', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.data).to.have.property('song');",
+									"    pm.expect(json.data.song).to.have.property('id');",
+									"    pm.expect(json.data.song).to.have.property('title');",
+									"});",
+									"",
+									"// Save copied song ID",
+									"const json = pm.response.json();",
+									"if (json.data && json.data.song && json.data.song.id) {",
+									"    pm.collectionVariables.set('copiedSongId', json.data.song.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/songs/{{songId}}/copy",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs", "{{songId}}", "copy"]
+						},
+						"description": "Copy a song to create a new version owned by the current user. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Record Song Listen",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Listen recorded successfully', function() {",
+									"    // API returns null data - just confirming success:true is enough",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.message).to.include('Listen recorded');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/songs/{{songId}}/listen",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs", "{{songId}}", "listen"]
+						},
+						"description": "Record a listen for a song. Increments the listen count."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Song",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200 - OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success true', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/songs/{{copiedSongId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs", "{{copiedSongId}}"]
+						},
+						"description": "Delete a song from the catalog. Requires authentication and ownership. Also removes it from all playlists. Uses the copied song ID to avoid deleting the main test song."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Song - Forbidden (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 403 or 404', function() {",
+									"    pm.expect(pm.response.code).to.be.oneOf([403, 404]);",
+									"});",
+									"",
+									"pm.test('Response has success false', function() {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/songs/99999",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "songs", "99999"]
+						},
+						"description": "Test deleting song not owned by user - should return 403 or 404."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

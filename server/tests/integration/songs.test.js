@@ -1,26 +1,26 @@
 const request = require('supertest');
 const app = require('../../src/index');
-const { createTestUser, getAuthHeader, createTestSong } = require('../helpers');
+const { createTestUser, createTestSong } = require('../helpers');
 
 describe('Songs API', () => {
   let testUser;
-  let testToken;
+  let testAgent;
   let otherUser;
-  let otherToken;
+  let otherAgent;
 
   beforeEach(async () => {
     const result1 = await createTestUser('test@example.com', 'testuser', 'Password123!');
     testUser = result1.user;
-    testToken = result1.token;
+    testAgent = result1.agent;
 
     const result2 = await createTestUser('other@example.com', 'otheruser', 'Password123!');
     otherUser = result2.user;
-    otherToken = result2.token;
+    otherAgent = result2.agent;
   });
 
   describe('GET /api/songs', () => {
     it('should list songs as guest', async () => {
-      await createTestSong(testToken, {
+      await createTestSong(testAgent, {
         title: 'Test Song',
         artist: 'Test Artist',
         year: 2023,
@@ -36,14 +36,14 @@ describe('Songs API', () => {
     });
 
     it('should filter songs by title', async () => {
-      await createTestSong(testToken, {
+      await createTestSong(testAgent, {
         title: 'Hello World',
         artist: 'Artist 1',
         year: 2023,
         youtube_id: 'abc123'
       });
 
-      await createTestSong(testToken, {
+      await createTestSong(testAgent, {
         title: 'Goodbye Moon',
         artist: 'Artist 2',
         year: 2023,
@@ -59,14 +59,14 @@ describe('Songs API', () => {
     });
 
     it('should sort songs by year descending', async () => {
-      await createTestSong(testToken, {
+      await createTestSong(testAgent, {
         title: 'Old Song',
         artist: 'Artist 1',
         year: 2020,
         youtube_id: 'abc123'
       });
 
-      await createTestSong(testToken, {
+      await createTestSong(testAgent, {
         title: 'New Song',
         artist: 'Artist 2',
         year: 2023,
@@ -83,7 +83,7 @@ describe('Songs API', () => {
 
   describe('GET /api/songs/:id', () => {
     it('should get single song', async () => {
-      const song = await createTestSong(testToken, {
+      const song = await createTestSong(testAgent, {
         title: 'Test Song',
         artist: 'Test Artist',
         year: 2023,
@@ -109,9 +109,8 @@ describe('Songs API', () => {
 
   describe('POST /api/songs', () => {
     it('should create song when authenticated', async () => {
-      const response = await request(app)
+      const response = await testAgent
         .post('/api/songs')
-        .set(getAuthHeader(testToken))
         .send({
           title: 'New Song',
           artist: 'New Artist',
@@ -140,16 +139,15 @@ describe('Songs API', () => {
     });
 
     it('should reject duplicate song', async () => {
-      await createTestSong(testToken, {
+      await createTestSong(testAgent, {
         title: 'Duplicate Song',
         artist: 'Same Artist',
         year: 2023,
         youtube_id: 'abc123'
       });
 
-      const response = await request(app)
+      const response = await testAgent
         .post('/api/songs')
-        .set(getAuthHeader(testToken))
         .send({
           title: 'Duplicate Song',
           artist: 'Same Artist',
@@ -164,16 +162,15 @@ describe('Songs API', () => {
 
   describe('PUT /api/songs/:id', () => {
     it('should update own song', async () => {
-      const song = await createTestSong(testToken, {
+      const song = await createTestSong(testAgent, {
         title: 'Original Song',
         artist: 'Original Artist',
         year: 2023,
         youtube_id: 'abc123'
       });
 
-      const response = await request(app)
+      const response = await testAgent
         .put(`/api/songs/${song.id}`)
-        .set(getAuthHeader(testToken))
         .send({
           title: 'Updated Song',
           artist: 'Updated Artist',
@@ -187,16 +184,15 @@ describe('Songs API', () => {
     });
 
     it('should reject update of another user song', async () => {
-      const song = await createTestSong(testToken, {
+      const song = await createTestSong(testAgent, {
         title: 'Test Song',
         artist: 'Test Artist',
         year: 2023,
         youtube_id: 'abc123'
       });
 
-      const response = await request(app)
+      const response = await otherAgent
         .put(`/api/songs/${song.id}`)
-        .set(getAuthHeader(otherToken))
         .send({
           title: 'Hacked Song',
           artist: 'Hacker',
@@ -211,32 +207,30 @@ describe('Songs API', () => {
 
   describe('DELETE /api/songs/:id', () => {
     it('should delete own song', async () => {
-      const song = await createTestSong(testToken, {
+      const song = await createTestSong(testAgent, {
         title: 'Test Song',
         artist: 'Test Artist',
         year: 2023,
         youtube_id: 'abc123'
       });
 
-      const response = await request(app)
-        .delete(`/api/songs/${song.id}`)
-        .set(getAuthHeader(testToken));
+      const response = await testAgent
+        .delete(`/api/songs/${song.id}`);
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message');
     });
 
     it('should reject delete of another user song', async () => {
-      const song = await createTestSong(testToken, {
+      const song = await createTestSong(testAgent, {
         title: 'Test Song',
         artist: 'Test Artist',
         year: 2023,
         youtube_id: 'abc123'
       });
 
-      const response = await request(app)
-        .delete(`/api/songs/${song.id}`)
-        .set(getAuthHeader(otherToken));
+      const response = await otherAgent
+        .delete(`/api/songs/${song.id}`);
 
       expect(response.status).toBe(403);
       expect(response.body).toHaveProperty('error');

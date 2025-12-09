@@ -1,15 +1,15 @@
 const request = require('supertest');
 const app = require('../../src/index');
-const { createTestUser, getAuthHeader } = require('../helpers');
+const { createTestUser } = require('../helpers');
 
 describe('Users API', () => {
   let testUser;
-  let testToken;
+  let testAgent;
 
   beforeEach(async () => {
     const result = await createTestUser('test@example.com', 'testuser', 'Password123!');
     testUser = result.user;
-    testToken = result.token;
+    testAgent = result.agent;
   });
 
   describe('GET /api/users/:id', () => {
@@ -35,9 +35,8 @@ describe('Users API', () => {
 
   describe('PUT /api/users/:id', () => {
     it('should update own profile', async () => {
-      const response = await request(app)
+      const response = await testAgent
         .put(`/api/users/${testUser.id}`)
-        .set(getAuthHeader(testToken))
         .send({
           username: 'updateduser'
         });
@@ -48,9 +47,8 @@ describe('Users API', () => {
     });
 
     it('should reject update with invalid password', async () => {
-      const response = await request(app)
+      const response = await testAgent
         .put(`/api/users/${testUser.id}`)
-        .set(getAuthHeader(testToken))
         .send({
           password: '123'
         });
@@ -63,9 +61,8 @@ describe('Users API', () => {
     it('should reject update of another user profile', async () => {
       const { user: otherUser } = await createTestUser('other@example.com', 'otheruser', 'Password123!');
 
-      const response = await request(app)
+      const response = await testAgent
         .put(`/api/users/${otherUser.id}`)
-        .set(getAuthHeader(testToken))
         .send({
           username: 'hacker'
         });

@@ -1,6 +1,6 @@
 const request = require('supertest');
 const app = require('../../src/index');
-const { createTestUser, getAuthHeader } = require('../helpers');
+const { createTestUser } = require('../helpers');
 
 describe('Auth API', () => {
   describe('POST /api/auth/register', () => {
@@ -64,9 +64,10 @@ describe('Auth API', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveProperty('token');
       expect(response.body.data.user).toHaveProperty('id');
       expect(response.body.data.user.email).toBe('test@example.com');
+      // Token is set as HTTP-only cookie, not in response body
+      expect(response.headers['set-cookie']).toBeDefined();
     });
 
     it('should reject login with invalid credentials', async () => {
@@ -86,11 +87,9 @@ describe('Auth API', () => {
 
   describe('GET /api/auth/me', () => {
     it('should get current user when authenticated', async () => {
-      const { user, token } = await createTestUser('test@example.com', 'testuser', 'Password123!');
+      const { user, agent } = await createTestUser('test@example.com', 'testuser', 'Password123!');
 
-      const response = await request(app)
-        .get('/api/auth/me')
-        .set(getAuthHeader(token));
+      const response = await agent.get('/api/auth/me');
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -109,11 +108,9 @@ describe('Auth API', () => {
 
   describe('POST /api/auth/logout', () => {
     it('should logout successfully', async () => {
-      const { token } = await createTestUser('test@example.com', 'testuser', 'Password123!');
+      const { agent } = await createTestUser('test@example.com', 'testuser', 'Password123!');
 
-      const response = await request(app)
-        .post('/api/auth/logout')
-        .set(getAuthHeader(token));
+      const response = await agent.post('/api/auth/logout');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message');

@@ -125,8 +125,10 @@ async function createUsers(users, passwordHash, transaction) {
 
     try {
       // Use findOrCreate to avoid unique constraint errors that abort transactions
+      // Normalize email to lowercase to match express-validator's normalizeEmail()
+      const normalizedEmail = userData.email.toLowerCase();
       const [user, wasCreated] = await User.findOrCreate({
-        where: { email: userData.email },
+        where: { email: normalizedEmail },
         defaults: {
           username: userData.name,
           password_hash: passwordHash,
@@ -215,122 +217,150 @@ function extractUniqueSongs(playlists, userMap) {
 }
 
 /**
- * Create songs in the database
+ * Create songs in the database using bulk insert
  * Returns a map of "title|artist|year" -> song record
  */
 async function createSongs(songMap, transaction) {
   console.log('\nCreating songs...');
 
-  const songRecordMap = new Map();
-  let created = 0;
-  let existing = 0;
+  // Prepare bulk data
+  const songsToCreate = [];
+  const keyOrder = [];
 
   for (const [key, songData] of songMap) {
-    // Use findOrCreate to avoid unique constraint errors
-    const [song, wasCreated] = await Song.findOrCreate({
-      where: {
-        title: songData.title,
-        artist: songData.artist,
-        year: songData.year
-      },
-      defaults: {
-        youtube_id: songData.youtube_id,
-        owner_id: songData.owner_id,
-        listen_count: 0
-      },
-      transaction
+    keyOrder.push(key);
+    songsToCreate.push({
+      title: songData.title,
+      artist: songData.artist,
+      year: songData.year,
+      youtube_id: songData.youtube_id,
+      owner_id: songData.owner_id,
+      listen_count: 0
     });
-
-    songRecordMap.set(key, song);
-
-    if (wasCreated) {
-      created++;
-      if (created % 100 === 0) {
-        console.log(`  + Created ${created} songs...`);
-      }
-    } else {
-      existing++;
-    }
   }
 
-  console.log(`Created ${created} songs, found ${existing} existing`);
+  // Bulk create all songs
+  const createdSongs = await Song.bulkCreate(songsToCreate, {
+    transaction,
+    ignoreDuplicates: true,
+    returning: true
+  });
+
+  console.log(`  + Bulk created ${createdSongs.length} songs`);
+
+  // Build the map from created records
+  const songRecordMap = new Map();
+
+  // Fetch all songs to get their IDs (needed because ignoreDuplicates may not return all)
+  const allSongs = await Song.findAll({ transaction });
+  for (const song of allSongs) {
+    const key = `${song.title}|${song.artist}|${song.year}`;
+    songRecordMap.set(key, song);
+  }
+
+  console.log(`Created/found ${songRecordMap.size} songs`);
   return songRecordMap;
 }
 
 /**
- * Create playlists and their song associations
+ * Create playlists and their song associations using bulk insert
  */
 async function createPlaylists(playlists, userMap, songRecordMap, transaction) {
   console.log('\nCreating playlists...');
 
-  let playlistsCreated = 0;
-  let playlistsExisting = 0;
-  let songLinksCreated = 0;
+  // First pass: prepare playlist data and track which songs go where
+  const playlistsToCreate = [];
+  const playlistSongData = []; // Will store { playlistKey, songKey, position }
 
-  for (const playlistData of playlists) {
+  let skipped = 0;
+
+  for (let i = 0; i < playlists.length; i++) {
+    const playlistData = playlists[i];
     const ownerEmail = playlistData.ownerEmail?.toLowerCase();
     const owner = userMap.get(ownerEmail);
 
     if (!owner) {
       console.warn(`  - Skipping playlist "${playlistData.name}": owner not found (${playlistData.ownerEmail})`);
+      skipped++;
       continue;
     }
 
     if (!playlistData.name) {
       console.warn(`  - Skipping playlist with no name for user ${ownerEmail}`);
+      skipped++;
       continue;
     }
 
-    // Use findOrCreate to avoid unique constraint errors
-    const [playlist, wasCreated] = await Playlist.findOrCreate({
-      where: {
-        name: playlistData.name,
-        owner_id: owner.id
-      },
-      defaults: {
-        listener_count: 0
-      },
-      transaction
+    // Use name|owner_id as key (matches unique constraint)
+    const playlistKey = `${playlistData.name}|${owner.id}`;
+    playlistsToCreate.push({
+      name: playlistData.name,
+      owner_id: owner.id,
+      listener_count: 0
     });
 
-    if (wasCreated) {
-      playlistsCreated++;
-      console.log(`  + Created playlist: "${playlistData.name}" (${owner.username})`);
+    // Track songs for this playlist
+    if (playlistData.songs && Array.isArray(playlistData.songs)) {
+      for (let position = 0; position < playlistData.songs.length; position++) {
+        const songData = playlistData.songs[position];
 
-      // Create playlist_songs junction records only for new playlists
-      if (playlistData.songs && Array.isArray(playlistData.songs)) {
-        for (let position = 0; position < playlistData.songs.length; position++) {
-          const songData = playlistData.songs[position];
+        if (!songData.title || !songData.artist || songData.year === undefined) {
+          continue;
+        }
 
-          if (!songData.title || !songData.artist || songData.year === undefined) {
-            continue;
-          }
-
-          const key = `${songData.title}|${songData.artist}|${songData.year}`;
-          const song = songRecordMap.get(key);
-
-          if (song) {
-            await PlaylistSong.findOrCreate({
-              where: {
-                playlist_id: playlist.id,
-                position: position
-              },
-              defaults: {
-                song_id: song.id
-              },
-              transaction
-            });
-            songLinksCreated++;
-          }
+        const key = `${songData.title}|${songData.artist}|${songData.year}`;
+        if (songRecordMap.has(key)) {
+          playlistSongData.push({ playlistKey, songKey: key, position });
         }
       }
-    } else {
-      playlistsExisting++;
-      console.log(`  = Found existing playlist: "${playlistData.name}" (${owner.username})`);
     }
   }
 
-  console.log(`Created ${playlistsCreated} playlists with ${songLinksCreated} song links, found ${playlistsExisting} existing`);
+  console.log(`  Prepared ${playlistsToCreate.length} playlists (skipped ${skipped})`);
+
+  // Bulk create all playlists (ignore duplicates for idempotent seeding)
+  await Playlist.bulkCreate(playlistsToCreate, {
+    transaction,
+    ignoreDuplicates: true
+  });
+
+  console.log(`  + Bulk created playlists`);
+
+  // Fetch all playlists to get their IDs (needed because ignoreDuplicates may not return all)
+  const allPlaylists = await Playlist.findAll({ transaction });
+  const playlistRecordMap = new Map();
+  for (const playlist of allPlaylists) {
+    const key = `${playlist.name}|${playlist.owner_id}`;
+    playlistRecordMap.set(key, playlist);
+  }
+
+  console.log(`  Found ${playlistRecordMap.size} playlists in database`);
+
+  // Build playlist_songs records
+  const playlistSongsToCreate = [];
+
+  for (const { playlistKey, songKey, position } of playlistSongData) {
+    const playlist = playlistRecordMap.get(playlistKey);
+    const song = songRecordMap.get(songKey);
+
+    if (playlist && song) {
+      playlistSongsToCreate.push({
+        playlist_id: playlist.id,
+        song_id: song.id,
+        position: position
+      });
+    }
+  }
+
+  console.log(`  Prepared ${playlistSongsToCreate.length} playlist-song links`);
+
+  // Bulk create all playlist_songs
+  await PlaylistSong.bulkCreate(playlistSongsToCreate, {
+    transaction,
+    ignoreDuplicates: true
+  });
+
+  console.log(`  + Bulk created ${playlistSongsToCreate.length} playlist-song links`);
 }
 
 /**
